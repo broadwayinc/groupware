@@ -119,6 +119,8 @@ import { skapi, mainPageLoading } from '@/main';
 import { user, makeSafe } from '@/user';
 import { divisionNameList, getDivisionNames } from '@/division'
 import { getEmpDivisionPosition, getUsers, employeeDict } from '@/employee';
+import { openGmailAppOrWeb } from '@/utils/mail';
+
 const router = useRouter();
 const route = useRoute();
 
@@ -239,9 +241,8 @@ let displayDivisionOptions = () => {
 
 let sendMail = async (mail: string) => {
 	const maillink = encodeURIComponent(mail);
-	const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${maillink}`;
-    
-    window.open(gmailUrl, "_blank"); // 새 탭에서 Gmail 열기
+
+    openGmailAppOrWeb(maillink);
 }
 
 // 파일 업로드 리스트 업데이트

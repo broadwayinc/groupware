@@ -25,10 +25,14 @@ header#header
 	.popup-header
 		h3.title 알림 목록
 
-	template(v-if="realtimes.length > 0")
+	template(v-if="unreadEmailNotiMsg || realtimes.length > 0")
 		.popup-main
 			ul
-				li(v-for="rt in realtimes" @click.stop="(e) => showRealtimeNoti(e, rt)")
+				li(v-if="unreadEmailNotiMsg" @click.stop="(e) => showRealtimeNoti(e, 'gmail')")
+					.router(@click="closePopup")
+						h4.noti-type [Gmail]
+						h5.noti-title 읽지 않은 이메일이 있습니다.
+				li(v-for="rt in realtimes" @click.stop="(e) => showRealtimeNoti(e, 'realtime', rt)")
 					.router(@click="closePopup" :class="{'read' : Object.keys(readList).includes(rt?.noti_id)}")
 						template(v-if="rt.audit_info.audit_type === 'request'")
 							h4.noti-type [{{ rt.audit_info.send_auditors.includes(`receiver:${user.user_id.replaceAll('-', '_')}`) ? '수신참조' : '결재요청' }}]
@@ -38,9 +42,10 @@ header#header
 
 						template(v-else-if="rt.audit_info.audit_type === 'email'")
 							h4.noti-type [새이메일]
-							h5.noti-title {{ rt.subject }}
-							//- .noti-info
-							p.noti-sender {{ rt.from }}
+							h5.noti-title 읽지 않은 메일이 있습니다.
+							//- h5.noti-title {{ rt.subject }}
+							//- //- .noti-info
+							//- p.noti-sender {{ rt.from }}
 							span.upload-time {{ formatTimeAgo(rt.dateTimeStamp) }}
 
 						template(v-else-if="rt.audit_info.audit_type === 'canceled'")
@@ -142,7 +147,8 @@ import { onUnmounted, onMounted, ref, watch } from 'vue';
 import { user, profileImage } from '@/user'
 import { skapi, resetBadgeCount } from '@/main'
 import { toggleOpen } from '@/components/navbar'
-import { realtimes, readList, unreadCount, readNoti } from '@/notifications'
+import { realtimes, readList, unreadCount, readNoti, unreadEmailNotiMsg } from '@/notifications'
+import { openGmailAppOrWeb } from '@/utils/mail';
 import { goToAuditDetail } from '@/audit'
 
 const router = useRouter();
@@ -223,14 +229,13 @@ onUnmounted(() => {
 	document.removeEventListener('click', closeProfile);
 });
 
-let showRealtimeNoti = (e, rt) => {
-	if(rt.audit_info.audit_type === 'email') {
-		window.open(rt.link, "_blank");
-	} else {
+let showRealtimeNoti = (e, type, rt) => {
+	if(type === 'gmail') {
+		openGmailAppOrWeb(null);
+	} else if(type === 'realtime' && rt) {
 		goToAuditDetail(e, rt.audit_info.audit_doc_id, router);
+		readNoti(rt);
 	}
-
-	readNoti(rt);
 }
 
 let logout = () => {
@@ -264,7 +269,7 @@ watch(() => route.path, (newPath, oldPath) => {
 	transition: padding 0.15s linear;
 	transition: top 0.3s;
 	z-index: 999;
-	box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.05);
+	box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.3);
 
 	.btn-mo-navbar {
 		display: none;
@@ -453,6 +458,7 @@ watch(() => route.path, (newPath, oldPath) => {
 
 		.popup-header {
 			padding: 34px 30px 24px;
+			border-bottom: 1px solid var(--gray-color-300);
 
 			.title {
 				font-size: 24px;
@@ -468,6 +474,10 @@ watch(() => route.path, (newPath, oldPath) => {
 
 				li {
 					border-top: none;
+
+					// &:first-child {
+					// 	padding-top: 0.5rem;
+					// }
 				}
 			}
 

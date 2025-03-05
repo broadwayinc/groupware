@@ -6,7 +6,10 @@
 			use(xlink:href="@/assets/icon/material-icon.svg#icon-error-outline")
 	p {{ serviceWorkerRegistMsg }}
 
-button.btn(v-if="onlyUserGesture" @click="subscribeNotification") 그룹웨어 알림 허용하기
+template(v-if="onlyUserGesture")
+	button.btn(@click="setNotificationPermission") 그룹웨어 알림 허용하기
+
+	br
 
 ul.card-wrap.gmail
 	li.card
@@ -32,7 +35,7 @@ ul.card-wrap.gmail
 				| 등록된 공지사항이 없습니다.
 ul.card-wrap.gmail(v-if="googleAccountCheck")
 	li.card
-		.title-wrap(:style="{ marginBottom: googleAccountCheck ? '1rem' : '0' }")
+		.title-wrap
 			h3.title 
 				.icon.img
 					svg
@@ -119,7 +122,8 @@ ul.card-wrap
 import { ref } from 'vue';
 import { user } from "@/user";
 import { convertTimestampToDateMillis } from "@/utils/time";
-import { mailList, serviceWorkerRegistMsg, readNoti, newsletterList, getNewsletterList, subscribeNotification, onlyUserGesture } from "@/notifications";
+import { openGmailAppOrWeb } from '@/utils/mail';
+import { mailList, serviceWorkerRegistMsg, readNoti, newsletterList, getNewsletterList, subscribeNotification, onlyUserGesture, setNotificationPermission } from "@/notifications";
 import Loading from '@/components/loading.vue';
 
 let loading = ref(false);
@@ -146,8 +150,10 @@ function googleLogin() {
 }
 
 let showMailDoc = (e, rt) => {
-	window.open(rt.link, "_blank");
-	readNoti(rt);
+	openGmailAppOrWeb(rt.link, true);
+	console.log({rt})
+	// window.open(rt.link, "_blank");
+	// readNoti(rt);
 }
 
 getNewsletterList();
@@ -170,7 +176,7 @@ getNewsletterList();
 		display: flex;
 
 		.card {
-			padding: 1.5rem;
+			// padding: 1.5rem;
 			transition: none;
 			width: 100%;
 
@@ -178,6 +184,20 @@ getNewsletterList();
 				transform: none;
 				// box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
 			}
+
+			ul {
+				padding-bottom: 1.5rem;
+			}
+		}
+
+		.title-wrap {
+			padding: 1.5rem;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 1rem;
+			flex-wrap: wrap;
+			border-bottom: 1px solid var(--gray-color-300);
 		}
 
 		.title {
@@ -203,7 +223,8 @@ getNewsletterList();
 		}
 
 		.mail {
-			border-top: 1px solid var(--gray-color-200);
+			// padding: 1.5rem 0;
+			// border-top: 1px solid var(--gray-color-300);
 			padding: 0.75rem 0.5rem;
 			cursor: pointer;
 
@@ -216,6 +237,7 @@ getNewsletterList();
 			display: flex;
 			align-items: center;
 			gap: 1rem;
+			padding: 0 1.5rem;
 			font-size: 0.875rem;
 			line-height: 1.2;
 			color: var(--gray-color-500);
@@ -265,15 +287,6 @@ getNewsletterList();
 		}
 	}
 
-	.title-wrap {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		flex-wrap: wrap;
-		margin-bottom: 1rem;
-	}
-
 	.empty {
 		display: flex;
 		justify-content: center;
@@ -285,6 +298,7 @@ getNewsletterList();
 		line-height: 1.4;
 		min-height: 150px;
 		text-align: center;
+		padding-top: 1.5rem;
 
 		.icon {
 			flex: none;

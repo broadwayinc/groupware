@@ -13,6 +13,11 @@ export const notifications: Reactive<{ messages: { fromUserId: string; msg: any 
 export let serviceWorkerRegistMsg = ref('');
 export let onlyUserGesture = ref(false);
 
+export async function setNotificationPermission() {
+	await Notification.requestPermission();
+	return checkNotificationPermission();
+}
+
 export async function checkNotificationPermission() {
 	onlyUserGesture.value = false;
 
@@ -34,10 +39,8 @@ export async function checkNotificationPermission() {
 			onlyUserGesture.value = true;
 		} else {
 			console.log("현재 브라우저는 Safari가 아닙니다.");
+			setNotificationPermission();
 		}
-
-		await Notification.requestPermission();
-		return checkNotificationPermission();
 	}
 
 	console.log('checkNotificationPermission - complete');
@@ -245,6 +248,7 @@ async function updateReadList(type: string) {
 }
 
 export const mailList = ref([]);
+export let unreadEmailNotiMsg = ref(false);
 export let googleEmailUpdate = ref(false);
 export let mailRefresh = ref(false);
 
@@ -262,6 +266,11 @@ export async function updateEmails(refresh = false) {
 			const res = await fetchGmailEmails(accessToken);
 			// console.log('=== updateEmails === res : ', res);
 			mailList.value = res;
+			if(mailList.value.length) {
+				unreadEmailNotiMsg.value = true;
+			} else {
+				unreadEmailNotiMsg.value = false
+			}
 			googleEmailUpdate.value = false;
 
 			// // console.log('=== updateEmails === res : ', res);
@@ -274,38 +283,68 @@ export async function updateEmails(refresh = false) {
 
 // 이메일 알림
 export const addEmailNotification = (emailData) => {
-	// // console.log('=== addEmailNotification === emailData : ', emailData);
-	let checkOrigin = realtimes.value.find((audit) => audit.id === emailData.id);
+    // console.log('=== addEmailNotification === emailData : ', emailData);
+    let checkOrigin = realtimes.value.find((audit) => audit.id === emailData.id);
 
-	if (checkOrigin) return;
+    if (checkOrigin) return;
 
-	// const addEmailData = {
-	// 	...emailData,
-	// 	noti_id: emailData.id,
-	// 	send_date: emailData.dateTimeStamp,
-	// 	audit_info: {
-	// 		audit_type: 'email',
-	// 	}
-	// };
+    // // "읽지 않은 메일이 있습니다" 알림이 이미 있는지 확인
+    // let unreadEmailNotification = realtimes.value.find((audit) => audit.audit_info?.audit_type === 'email' && audit.subject === '읽지 않은 메일이 있습니다');
 
-	realtimes.value.push(emailData);
-	realtimes.value = [...realtimes.value].sort((a, b) => b.send_date - a.send_date); // 최신 날짜 순
+    // if (unreadEmailNotification) return;
 
-	// console.log('Updated realtimes:', realtimes.value);
+    const addEmailData = {
+        ...emailData,
+        noti_id: emailData.id,
+        send_date: emailData.dateTimeStamp,
+        audit_info: {
+            audit_type: 'email',
+        },
+        subject: '읽지 않은 메일이 있습니다', // 안내 문구로 대체
+        from: '', // 발신자 정보 제거
+    };
 
-	// notifications.emails.unshift({
-	//     type: 'email',
-	//     title: emailData.subject,
-	//     from: emailData.from,
-	//     date: emailData.date,
-	//     dateTimeStamp: emailData.dateTimeStamp,
-	//     link: emailData.link
-	// });
+    realtimes.value.push(addEmailData);
+    realtimes.value = [...realtimes.value].sort((a, b) => b.send_date - a.send_date); // 최신 날짜 순
 
-	unreadCount.value++;
+    // console.log('Updated realtimes:', realtimes.value);
 
-	// return notifications.emails;
+    unreadCount.value++;
 }
+
+// export const addEmailNotification = (emailData) => {
+// 	// // console.log('=== addEmailNotification === emailData : ', emailData);
+// 	let checkOrigin = realtimes.value.find((audit) => audit.id === emailData.id);
+
+// 	if (checkOrigin) return;
+
+// 	// const addEmailData = {
+// 	// 	...emailData,
+// 	// 	noti_id: emailData.id,
+// 	// 	send_date: emailData.dateTimeStamp,
+// 	// 	audit_info: {
+// 	// 		audit_type: 'email',
+// 	// 	}
+// 	// };
+
+// 	realtimes.value.push(emailData);
+// 	realtimes.value = [...realtimes.value].sort((a, b) => b.send_date - a.send_date); // 최신 날짜 순
+
+// 	// console.log('Updated realtimes:', realtimes.value);
+
+// 	// notifications.emails.unshift({
+// 	//     type: 'email',
+// 	//     title: emailData.subject,
+// 	//     from: emailData.from,
+// 	//     date: emailData.date,
+// 	//     dateTimeStamp: emailData.dateTimeStamp,
+// 	//     link: emailData.link
+// 	// });
+
+// 	unreadCount.value++;
+
+// 	// return notifications.emails;
+// }
 
 export const newsletterList = ref([]);
 export let getNewsletterListRunning: Promise<any> | null = null;
@@ -463,12 +502,13 @@ watch(user, async (u) => { // 로딩되고 로그인되면 무조건 실행
 	}
 }, { immediate: true });
 
-watch([realtimes, readList, notifications.emails], () => {
+watch([realtimes, readList, unreadEmailNotiMsg], () => {
 	// 기존 알림 개수
 	const auditCount = realtimes.value.filter((audit) => !Object.keys(readList.value).includes(audit.noti_id)).length;
 
 	// 읽지 않은 이메일 개수
-	const emailCount = notifications.emails.length;
+	// const emailCount = notifications.emails.length;
+	const emailCount = unreadEmailNotiMsg.value ? 1 : 0;
 
 	// 이메일 업데이트
 	if (emailCount < 1 && googleEmailUpdate.value === false) {
@@ -480,16 +520,30 @@ watch([realtimes, readList, notifications.emails], () => {
 }, { immediate: true, deep: true });
 
 // 컴포넌트 마운트 시 이메일 업데이트 되는 거에 따른 mails.value 변경 감지
-watch(mailList, (newVal, oldVal) => {
-	if (!newVal) {
-		return;
-	}
+// watch(mailList, (newVal, oldVal) => {
+// 	console.log('=== mailList === newVal : ', newVal);
+// 	console.log('=== mailList === oldVal : ', oldVal);
 
-	if ((newVal.length && !oldVal) || (newVal.length > oldVal.length) || mailRefresh.value) {
-		for (let i in newVal) {
-			addEmailNotification(newVal[i]);
-		}
+// 	if (!newVal) {
+// 		return;
+// 	}
 
-		mailRefresh.value = false;
-	}
-});
+// 	if ((newVal.length && !oldVal) || (newVal.length > oldVal.length) || mailRefresh.value) {
+// 		console.log('이메일 읽어 알람 추가');
+// 		unreadEmailNotiMsg.value = true;
+// 		// // "읽지 않은 메일이 있습니다" 알림이 이미 있는지 확인
+// 		// let unreadEmailNotification = realtimes.value.find((audit) => audit.audit_info?.audit_type === 'email' && audit.subject === '읽지 않은 메일이 있습니다');
+
+// 		// if (!unreadEmailNotification) {
+// 		// 	addEmailNotification(newVal[0]);
+// 		// }
+
+// 		// for (let i in newVal) {
+// 		// 	addEmailNotification(newVal[i]);
+// 		// }
+
+// 		mailRefresh.value = false;
+// 	} else {
+// 		unreadEmailNotiMsg.value = false;
+// 	}
+// });

@@ -19,7 +19,8 @@ nav#navbar(ref="navbar")
                                 use(:href="getIconPath(item.icon)")
                         .text 
                             span {{ item.text }}
-                    router-link.router(v-if="!item.isExternal" :to="item.to" @click="item.child && handleMenuClick($event, item.name)")
+                    //- 하위 메뉴가 있는 경우 router-link 대신 일반 a 태그 사용하여 네비게이션 방지
+                    a.router(v-if="!item.isExternal && item.child" @click="handleMenuClick($event, item.name)")
                         .icon
                             svg
                                 use(:href="getIconPath(item.icon)")
@@ -27,9 +28,16 @@ nav#navbar(ref="navbar")
                             span {{ item.text }}
                             svg.arrow(v-if="item.child" :class="{'down': item.child.name === activeMenu}")
                                 use(xlink:href="@/assets/icon/material-icon.svg#icon-arrow-forward-ios")
+                    //- 하위 메뉴가 없는 경우만 router-link 사용
+                    router-link.router(v-if="!item.isExternal && !item.child" :to="item.to" @click.native="handleLinkClick(item.to)")
+                        .icon
+                            svg
+                                use(:href="getIconPath(item.icon)")
+                        .text 
+                            span {{ item.text }}
                     ul.sub-menu-item(v-if="item.child && item.child.name === activeMenu")
                         li(v-for="child in item.child.list" :key="child.name" :class="{'active': route.name === child.name}")
-                            router-link(:to="child.to") {{ child.text }}
+                            router-link(:to="child.to" @click.native="handleLinkClick(item.to)") {{ child.text }}
 
 </template>
 
@@ -45,7 +53,55 @@ const route = useRoute();
 
 let navbar = ref(null);
 let activeMenu = ref(null);
-let googleAccountCheck = localStorage.getItem('accessToken') ? true : false;
+// let googleAccountCheck = localStorage.getItem('accessToken') ? true : false;
+const googleAccountCheck = computed(() => !!localStorage.getItem('accessToken'));
+console.log('= navbar = googleAccountCheck : ', googleAccountCheck.value);
+
+const handleLinkClick = (to) => {
+    console.log('to : ', to);
+    console.log('route.path : ', route.path);
+    if (route.path === to || route.path.startsWith(to) || isSubMenuPath(to)) {
+        closeMobileNavbar();
+    }
+
+    if (route.path === to) {
+        console.log('yes!!'); 
+        // 해당 메뉴에 active 클래스 추가
+        activeMenu.value = to.split('/')[1];
+    }
+};
+
+const isSubMenuPath = (to) => {
+    console.log('=== isSubMenuPath === to : ', to);
+    return menuList.value.some(item => {
+        console.log('item : ', item);
+        if (item.child) {
+            return item.child.list.some(child => route.path === child.to);
+        }
+        return false;
+    });
+};
+
+// 메뉴 toggle
+const handleMenuClick = (event, menuName) => {
+    console.log('menuName : ', menuName);
+    console.log('activeMenu.value : ', activeMenu.value);
+
+    // 이미 열린 메뉴를 클릭하면 닫기
+    if (activeMenu.value === menuName) {
+        console.log('yes');
+        activeMenu.value = null; // 이미 열린 메뉴를 클릭하면 닫기
+    } else {
+        console.log('no');
+        event.preventDefault(); // 페이지 이동을 막고 메뉴만 토글
+        activeMenu.value = menuName;
+    }
+};
+
+const closeMobileNavbar = () => {
+    isOpen.value = false;
+    document.body.classList.remove('open');
+};
 
 // isadmin을 computed로 변경하여 반응성 부여
 const isadmin = computed(() => user.access_group > 98);
@@ -67,7 +123,7 @@ const menuList = computed(() => [
         text: '대시보드',
     },
     {
-        show: googleAccountCheck,
+        show: googleAccountCheck.value,
         name: 'email',
         to: 'https://mail.google.com/mail/u/0/#inbox',
         icon: '#icon-mail',
@@ -136,11 +192,12 @@ const menuList = computed(() => [
                     text: '근태 관리',
                 },
                 {
+                    show: !googleAccountCheck.value, // 구글 로그인 시 비밀번호 변경 메뉴 숨기기
                     name: 'change-password',
                     to: '/change-password',
                     text: '비밀번호 변경',
                 },
-            ]
+            ].filter(item => item.show !== false) // show가 false인 항목을 필터링
         }
     },
     {
@@ -196,6 +253,7 @@ const menuList = computed(() => [
 // closeNavbar도 computed로 변경하여 menuList 변화에 따라 자동 업데이트
 const closeNavbar = computed(() => {
     let arr = [];
+
     menuList.value.forEach(item => {
         if(item.child) {
             arr.push(item.child.list.map(child => child.name));
@@ -203,6 +261,7 @@ const closeNavbar = computed(() => {
             arr.push(item.name);
         }
     });
+
     let newArr = new Set(arr.flat());
     return [...newArr];
 });
@@ -219,16 +278,6 @@ let checkNavbarClose = (e) => {
 const getIconPath = computed(() => (iconName) => {
     return `${MaterialIcon}${iconName}`
 });
-
-// 메뉴 toggle
-const handleMenuClick = (event, menuName) => {
-  if (activeMenu.value === menuName) {
-    activeMenu.value = null; // 이미 열린 메뉴를 클릭하면 닫기
-  } else {
-    event.preventDefault(); // 페이지 이동을 막고 메뉴만 토글
-    activeMenu.value = menuName;
-  }
-};
 
 onMounted(() => {
     checkScreenWidth();
@@ -298,7 +347,7 @@ watch(() => route.fullPath, (nv) => {
     left: 0;
     overflow-y: overlay;
     background-color: #fff;
-    box-shadow: 5px 1px 30px rgba(0,0,0,0.05);
+    box-shadow: 5px 1px 20px rgba(0,0,0,0.2);
     z-index: 9999;
     // transition: width 0.15s linear;
     transition: left 0.15s linear;
@@ -336,7 +385,7 @@ watch(() => route.fullPath, (nv) => {
     }
 
     .menu-item {
-        padding: 20px 16px 0;
+        padding: 20px 16px 40px;
 
         .item {
             margin-top: 0.8rem;
@@ -486,5 +535,15 @@ watch(() => route.fullPath, (nv) => {
             }
         }
     }
+}
+
+@media (hover: none) {
+  #navbar .menu-item .item:hover .router {
+    background-color: transparent !important;
+  }
+
+  #navbar .menu-item .item.active:hover .router {
+    background-color: var(--primary-color-400) !important;
+  }
 }
 </style>

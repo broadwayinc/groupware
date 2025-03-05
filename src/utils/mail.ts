@@ -144,4 +144,69 @@ function convertToTimestamp(dateTimeString) {
     return timestamp;
 }
 
-export { fetchGmailEmails, fetchMessageDetails, extractSenderName, formatMailDate, checkForAttachments };
+function openGmailAppOrWeb(link:string | null, show = false) {
+	// Gmail 앱용 딥 링크
+	let gmailAppUrlIOS = '';
+	// const gmailAppUrlAndroid = `intent://co?to=${maillink}#Intent;scheme=googlegmail;package=com.google.android.gm;end`;
+	let gmailAppUrlAndroid = '';
+	// 웹용 Gmail 링크
+	let gmailWebUrl = '';
+
+	if(link) {
+		if(show) {
+			// Gmail 앱 내에서 특정 이메일 보기 (현재 Gmail 앱의 URL 스킴으로는 지원되지 않음, 웹 버전으로 폴백)
+			gmailWebUrl = link;
+			console.log('특정 이메일 보기 : ', gmailWebUrl);
+			console.log('특정 이메일 보기 : ', show);
+		} else {
+			// 특정 이메일 주소 메일 작성하는 경우
+			gmailAppUrlIOS = `googlegmail:///co?to=${link}`;
+			gmailAppUrlAndroid = `mailto:${link}`;
+			gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${link}`;
+		}
+	} else {
+		// 기본 Gmail 앱 메일함 열기
+		gmailAppUrlIOS = `googlegmail://`;
+		gmailAppUrlAndroid = `intent://gmail/#Intent;scheme=android-app;package=com.google.android.gm;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.google.android.gm;end;`;
+		// gmailAppUrlAndroid = `intent://co#Intent;scheme=googlegmail;package=com.google.android.gm;end`;
+		// gmailAppUrlAndroid = `intent://#Intent;scheme=googlegmail;package=com.google.android.gm;end`;
+		gmailWebUrl = `https://mail.google.com/mail/u/0/#inbox`;
+	}
+
+    try {
+        if (!show && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            // iOS: Gmail 앱 딥 링크 호출
+            window.location.href = gmailAppUrlIOS;
+        } else if (!show && /Android/i.test(navigator.userAgent)) {
+            // Android: Gmail 앱 딥 링크 호출
+            const fallbackTimeout = 1000; // 1초 대기 시간
+            let appOpened = false;
+
+            // Gmail 앱 딥 링크 호출
+            window.location.href = gmailAppUrlAndroid;
+
+            // Gmail 앱이 열리지 않으면 웹 버전으로 폴백
+            setTimeout(() => {
+                if (!appOpened) {
+                    console.log("Gmail app not opened, redirecting to web version...");
+                    window.open(gmailWebUrl, "_blank");
+                }
+            }, fallbackTimeout);
+
+            // Gmail 앱이 열렸는지 확인 (사용자 정의 플래그)
+            window.addEventListener("blur", () => {
+                appOpened = true;
+            });
+        } else {
+            // 기타 플랫폼에서는 웹 버전으로 이동
+            window.open(gmailWebUrl, "_blank");
+			console.log('웹 버전 열림')
+        }
+    } catch (error) {
+        console.error("Failed to open Gmail app, redirecting to web version...", error);
+        // 에러 발생 시 웹 버전으로 이동
+        window.open(gmailWebUrl, "_blank");
+    }
+}
+
+export { fetchGmailEmails, fetchMessageDetails, extractSenderName, formatMailDate, checkForAttachments, openGmailAppOrWeb };

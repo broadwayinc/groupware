@@ -389,6 +389,7 @@ onUnmounted(() => {
                 cursor: pointer;
                 padding: 8px 12px;
                 border-radius: 4px;
+				white-space: nowrap;
 
                 &:first-child {
                     margin-bottom: 4px;
@@ -454,8 +455,33 @@ onUnmounted(() => {
     }
 }
 
+@media (max-width: 950px) {
+    .stamp-wrap {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
     .stamp-wrap {
+        grid-template-columns: repeat(2, 1fr);
+        
+        .stamp-grid {
+            .upload-options {
+                transform: translateX(10%) translateY(-12%);
+                
+                li {
+                    font-size: 0.875rem;
+                    padding: 10px 8px;
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: 576px) {
+    .stamp-wrap {
+        grid-template-columns: repeat(1, 1fr);
+
         .stamp-grid {
             .upload-options {
                 transform: translateX(10%) translateY(-12%);
@@ -469,19 +495,9 @@ onUnmounted(() => {
     }
 }
 
-@media (max-width: 950px) {
-    .stamp-wrap {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-@media (max-width: 576px) {
-    .stamp-wrap {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-@media (max-width: 390px) {
-    .stamp-wrap {
-        grid-template-columns: repeat(1, 1fr);
-    }
-}
+// @media (max-width: 390px) {
+//     .stamp-wrap {
+//         grid-template-columns: repeat(1, 1fr);
+//     }
+// }
 </style>

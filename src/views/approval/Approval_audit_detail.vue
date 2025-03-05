@@ -86,6 +86,10 @@ Loading#loading(v-if="getAuditDetailRunning")
 								th 수신 참조
 								td.left(colspan="3") {{ selectedAuditors.receivers.map(receiver => receiver.name).join(', ') }}
 
+							tr(v-for="(row, index) in customRows" :key="'custom_' + index")
+								th {{ row.title }}
+								td.left(colspan="3") {{ row.value }}
+
 							tr
 								th 제목
 								td.left(colspan="3") {{ auditDoContent?.data?.to_audit }}
@@ -202,7 +206,7 @@ Loading#loading(v-if="getAuditDetailRunning")
 									.stamp-grid(v-for="stamp in uploadedStamp" :key="stamp.url" @click="selectStamp(stamp.url)")
 										.stamp(:class="{'selected' : selectedStamp === stamp.url.split('?')[0]}")
 											img#stamp-img(:src="stamp.url" alt="도장 이미지")
-								.previewStamp(v-else-if="previewStamp" :class="{'selected' : selectedStamp === previewStamp}" @click="selectStamp(previewStamp)")
+								.previewStamp(v-else-if="previewStamp" :class="{'selected' : selectedStamp === previewStamp.split('?')[0]}" @click="selectStamp(previewStamp)")
 									img(:src="previewStamp" style="display: block;margin: 0 auto;" alt="도장 미리보기")
 								.no-stamp(v-else style="text-align: center;border: 1px solid var(--gray-color-100);padding: 3rem 1rem;border-radius: 8px;color: var(--gray-color-400); font-size:0.9rem") 
 									template(v-if="makeStampRunning")
@@ -273,6 +277,7 @@ const makeStampComplete = ref(false);
 const makeSignComplete = ref(false);
 const isCanceled = ref(false); // 결재 회수 여부
 const getAuditDetailRunning = ref(false);
+const customRows = ref([]);
 
 // 결재 회수 가능 여부 확인
 const isCancelPossible = computed(() => {
@@ -557,7 +562,7 @@ let createStamp = () => {
 
 let selectStamp = (url) => {
   if (url.includes('?')) {
-    selectedStamp.value = url.split('?')[0];
+	  selectedStamp.value = url.split('?')[0];
   }
   selectedStampComplete.value = true;
 };
@@ -591,6 +596,7 @@ const getAuditDetail = async () => {
   agreerList.value = [];
   auditorList.value = [];
   uploadedFile.value = [];
+	customRows.value = [];
   selectedAuditors.value = {
     approvers: [],
     agreers: [],
@@ -614,6 +620,16 @@ const getAuditDetail = async () => {
 
     if (auditDoc) {
       auditDoContent.value = auditDoc;
+      
+      // 추가된 코드: custom_rows 데이터 추출
+      if (auditDoc.data.custom_rows) {
+        try {
+          customRows.value = JSON.parse(auditDoc.data.custom_rows);
+        } catch (e) {
+          console.error('Custom rows parsing error:', e);
+          customRows.value = [];
+        }
+      }
     }
 
     skapi
