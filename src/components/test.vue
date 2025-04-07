@@ -1,5 +1,6 @@
 <template lang="pug">
 h4 {{ realtimeTestingMsg }}
+h4(style="margin-bottom: 1rem;") {{buildTime}}
 
 .test-area
 	h3.title Notification Subscribe Test
@@ -29,15 +30,25 @@ h4 {{ realtimeTestingMsg }}
 	button.btn(@click="pushNotification(notifications.content, notifications.user_id)") Push notifications
 	button.btn(@click="postRealTimeMsg") Post Realtime Msg
 
+	br
+
+	h3.title WYSIWYG Editor Test
+
+	#WYSIWYG(style="border: 1px solid #000;")
+
+	button.btn(@click="tablePlugin(3, 3)") Table Plugin
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { onMounted, ref } from "vue";
 import { subscribeNotification, unsubscribeNotification, pushNotification } from "@/notifications";
-import { skapi, realtimeTestingMsg } from "@/main";
+import { skapi, realtimeTestingMsg, buildTime } from "@/main";
 import { user } from "@/user";
 import { getUsers } from "@/employee";
-
+import { Wysiwyg4All } from 'wysiwyg4all';
+import 'wysiwyg4all/css';
+import { createApp } from 'vue';
+import wysiwygTable from '@/components/wysiwygTable.vue';
 let emps = ref([]);
 let subsState = ref(false);
 let pushNotificationBody = {
@@ -58,11 +69,11 @@ getUsers({
 	value: 'by_skapi:approved',
 	condition: '>='
 }, true).then((res) => {
-	console.log('getUsers', res);
+	// console.log('getUsers', res);
 	emps.value = res;
 });
 
-console.log({user});
+// console.log({user});
 
 function subscribe () {
 	subscribeNotification();
@@ -89,10 +100,25 @@ function postRealTimeMsg () {
 			body: '테스트 Realtime',
 		}
 	).then((res) => {
-		console.log('postRealTimeMsg', res);
+		// console.log('postRealTimeMsg', res);
 	});
 }
 
+
+// Function to dynamically load the component
+function loadWysiwygTable(col, row) {
+	// Create a container element
+	const container = document.createElement('div');
+	// container.id = 'wysiwyg-table-container';
+	
+	// Create and mount the Vue component with props
+	const app = createApp(wysiwygTable, { col, row });
+	app.mount(container);
+	console.log({app, container})
+	return container;
+}
+
+let wysiwyg = null;
 onMounted(async() => {
 	// let subs = window.localStorage.getItem('skapi_subscription_obj');
 	// if (subs) {
@@ -100,7 +126,42 @@ onMounted(async() => {
 	// }
 	// let pms = await Notification.requestPermission();
 	// pms ? notiState.value = true : notiState.value = false;
+
+	console.log({Wysiwyg4All})
+
+
+	wysiwyg = new Wysiwyg4All({
+		//set ID of target <DIV>.
+		elementId: 'WYSIWYG',
+
+		// Add placeholder string.
+		placeholder: 'Build your custom wysiwyg',
+
+		// Set spellcheck to true/false.
+		spellcheck: false, 
+
+		// Set color scheme of wysiwyg (HTML color name | hex | rgb | hsl).
+		highlightColor: 'teal',
+
+		// When set to true, blank line will always be added on the last line of text area.
+		lastLineBlank: false,
+
+		// When set to true, wysiwyg will auto detect hashtag strings.
+		hashtag: true,
+
+		// When set to true, wysiwyg will auto detect url strings
+		urllink: true,
+
+		// When set to true, wysiwyg will output DOM mutation data via callback function.
+		logMutation: false
+	})
 })
+let tablePlugin = (col, row) => {
+	wysiwyg.command({
+		element: loadWysiwygTable(col, row),
+		contenteditable: true
+	});
+}
 </script>
 
 <style scoped lang="less">

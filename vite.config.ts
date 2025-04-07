@@ -7,7 +7,6 @@ import { loadEnv } from 'vite'
 
 const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '')
 const serviceId = env.VITE_SERVICE_ID || 'default'
-console.log({serviceId});
 
 const config = {
     plugins: [
@@ -31,11 +30,11 @@ const config = {
                 // 	// skipWaiting: true,            // 기존 서비스 워커 무시하고 바로 새 서비스 워커 활성화
                 // },
                 manifest: {
-                    name: "그룹웨어",
-                    short_name: "그룹웨어",
+                    name: "FG WORKS",
+                    short_name: "FG WORKS",
                     start_url: "/",
                     display: "standalone",
-                    theme_color: "#ffffff",
+                    theme_color: "#DEE1E6",
                     background_color: "#ffffff",
                     icons: [
                         // {
@@ -96,7 +95,9 @@ const config = {
         // https: false, // HTTPS를 비활성화
         // host: 'localhost',
         // port: 5173,
+        // cors: true,
     },
+    // base: './',
 }
 
 // https://vite.dev/config/

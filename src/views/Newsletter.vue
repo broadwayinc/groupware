@@ -53,11 +53,12 @@ hr
 						td {{ convertTimestampToDateMillis(news.timestamp) }}
 </template>
 
-<script lang="ts" setup>
-import { type Ref, onMounted, ref, watch } from 'vue';
+<script setup>
+import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { newsletterList, getNewsletterList } from '@/notifications'
 import { convertTimestampToDateMillis } from "@/utils/time";
+import { openGmailAppOrWeb } from '@/utils/mail';
 import { skapi } from '@/main';
 import { user } from '@/user';
 
@@ -67,14 +68,8 @@ const router = useRouter();
 const route = useRoute();
 
 let loading = ref(false);
-let searchFor: Ref<"subject" | "timestamp" | "message_id" | "read" | "complaint"> = ref('subject');
-let searchValue: Ref<{
-	subject: string;
-	timestamp: {
-		start: string;
-		end: string;
-	}
-}> = ref({
+let searchFor = ref('subject');
+let searchValue = ref({
 	subject: '',
 	timestamp: {
 		start: '',
@@ -113,23 +108,12 @@ let searchNewsletter = async() => {
 	}
 
 	loading.value = false;
-
-	// if(searchValue.value.subject === '') {
-	// 	await getNewsletterList(true);
-	// 	loading.value = false;
-	// } else {
-	// 	newsletterList.value = newsletterList.value.filter((news: any) => {
-	// 		return news.subject.includes(searchValue.value);
-	// 	});
-	// 	loading.value = false;
-	// }
 }
 
 let sendAdminNewsletter = async() => {
 	let endpoint = await skapi.adminNewsletterRequest();
-	const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${endpoint}`;
-    
-    window.open(gmailUrl, "_blank"); // 새 탭에서 Gmail 열기
+
+    openGmailAppOrWeb(endpoint);
 }
 
 watch(searchFor, (nv, ov) => {

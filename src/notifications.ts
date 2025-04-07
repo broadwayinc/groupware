@@ -1,14 +1,51 @@
-import { Reactive, reactive, type Ref, ref, watch } from "vue";
-import { skapi, checkNotificationPermission, serviceWorkerRegistMsg, onlyUserGesture } from "@/main";
+import { type Reactive, reactive, type Ref, ref, watch } from "vue";
+import { skapi } from "@/main";
 import { user } from "@/user";
 import { getUserInfo } from "@/employee";
 import { fetchGmailEmails } from "@/utils/mail";
 
-export const notifications:Reactive<{messages: {fromUserId:string; msg: any }[], audits: {fromUserId:string; msg: any }[]}> = reactive({
-    audits: [],
-    messages: [],
+export const notifications: Reactive<{ messages: { fromUserId: string; msg: any }[], audits: { fromUserId: string; msg: any }[] }> = reactive({
+	audits: [],
+	messages: [],
 	emails: [],
 });
+
+export let serviceWorkerRegistMsg = ref('');
+export let onlyUserGesture = ref(false);
+
+export async function setNotificationPermission() {
+	await Notification.requestPermission();
+	return checkNotificationPermission();
+}
+
+export async function checkNotificationPermission() {
+	onlyUserGesture.value = false;
+
+	if (Notification.permission === "granted") {
+		console.log("알림이 허용되어 있습니다.");
+		console.log("hererererere")
+		onlyUserGesture.value = false;
+	} else if (Notification.permission === "denied") {
+		console.log("알림이 차단되어 있습니다.");
+		onlyUserGesture.value = false;
+	} else if (Notification.permission === "default") {
+		console.log("알림 권한이 아직 설정되지 않았습니다.");
+		function isSafari() {
+			const userAgent = navigator.userAgent;
+			return /^((?!chrome|android).)*safari/i.test(userAgent);
+		}
+
+		if (isSafari()) {
+			console.log("현재 브라우저는 Safari입니다.");
+			onlyUserGesture.value = true;
+		} else {
+			console.log("현재 브라우저는 Safari가 아닙니다.");
+			setNotificationPermission();
+		}
+	}
+
+	return Notification.permission;
+}
 
 export const readAudit: Ref<{
 	noti_id: string; // 알람 ID
@@ -23,7 +60,7 @@ export const readAudit: Ref<{
 		send_auditors?: [];
 		approval?: string;
 	}
-}> = ref({
+} & Record<string, any>> = ref({
 	noti_id: '',
 	noti_type: '',
 	send_date: 0, // 결재 알람 보낸 시간
@@ -34,10 +71,10 @@ export const realtimes = ref([]);
 export let getRealtimeRunning: Promise<any> | null = null;
 
 export const getRealtime = (refresh = false) => {
-	if(getRealtimeRunning instanceof Promise) {	// 이미 실행중인 경우
+	if (getRealtimeRunning instanceof Promise) {	// 이미 실행중인 경우
 		return getRealtimeRunning;
 	}
-	
+
 	if (Object.keys(realtimes.value).length && !refresh) {	// 기존 데이터가 있고 새로고침이 필요 없는 경우
 		return realtimes.value;
 	}
@@ -56,9 +93,9 @@ export const getRealtime = (refresh = false) => {
 			const realtime_list = await Promise.all(
 				realtime.list.map(async (request) => {
 					// console.log({request});
-                    try {
-                        const senderInfo = await getUserInfo(request?.data?.send_user);
-                        // console.log({senderInfo});
+					try {
+						const senderInfo = await getUserInfo(request?.data?.send_user);
+						// console.log({senderInfo});
 
 						return {
 							...request?.data,
@@ -86,12 +123,12 @@ export const getRealtime = (refresh = false) => {
 };
 
 // export const readList = ref([]);
-export const readList: Ref<{ [key:string]: {} }> = ref({});
+export const readList: Ref<{ [key: string]: {} }> = ref({});
 export const unreadCount = ref(0);
 export let getReadListRunning: Promise<any> | null = null;
 
-export const getReadList = async() => {
-	if(getReadListRunning instanceof Promise) { // 이미 실행중인 경우
+export const getReadList = async () => {
+	if (getReadListRunning instanceof Promise) { // 이미 실행중인 경우
 		await getReadListRunning;
 		return readList.value;
 	}
@@ -99,11 +136,11 @@ export const getReadList = async() => {
 	if (readList.value && Object.keys(readList.value).length) { // 받아온적 있거나, 데이터가 없는경우
 		return readList.value; // 이미 데이터가 존재하면 불러오지 않음
 	}
-	
+
 	getReadListRunning = skapi.getRecords({
 		unique_id: '[notification_read_list]' + user.user_id
-	}).catch(async(err) => {
-		if(err.code === 'NOT_EXISTS') {
+	}).catch(async (err) => {
+		if (err.code === 'NOT_EXISTS') {
 			// readList.value = [];
 			readList.value = {};
 			await createReadListRecord();
@@ -127,14 +164,14 @@ export const getReadList = async() => {
 }
 export const createReadListRecord = (read = false) => {
 	// let updateData = readList.value || [];
-	let updateData: { [key:string]: {} } = readList.value || {};
+	let updateData: { [key: string]: {} } = readList.value || {};
 
 	// if(read && !updateData.includes(readAudit.value.noti_id)) {
 	// 	updateData.push(readAudit.value.noti_id);	// 읽지 않은 알람일 경우 추가
 	// 	unreadCount.value = realtimes.value.filter((audit) => !updateData.includes(audit.noti_id)).length;
 	// }
 
-	if(read && !Object.keys(updateData).includes(readAudit.value.noti_id)) {
+	if (read && !Object.keys(updateData).includes(readAudit.value.noti_id)) {
 		// updateData.push(readAudit.value.noti_id);	// 읽지 않은 알람일 경우 추가
 		updateData[readAudit.value.noti_id] = readAudit.value;
 		unreadCount.value = realtimes.value.filter((audit) => !Object.keys(updateData).includes(audit.noti_id)).length;
@@ -177,7 +214,7 @@ export const createReadListRecord = (read = false) => {
 		}
 	)
 }
-export const readNoti = async(rt) => {
+export const readNoti = async (rt: any) => {
 	// 기존 readAudit 초기화
 	for (let key in readAudit.value) {
 		delete readAudit.value[key];
@@ -192,10 +229,10 @@ export const readNoti = async(rt) => {
 	updateReadList(rt.audit_info.audit_type);
 }
 
-async function updateReadList (type: string) {
+async function updateReadList(type: string) {
 	let id;
 
-	if(type === 'email') {
+	if (type === 'email') {
 		id = readAudit.value.id;
 	} else {
 		id = readAudit.value.noti_id;
@@ -210,14 +247,15 @@ async function updateReadList (type: string) {
 }
 
 export const mailList = ref([]);
+export let unreadEmailNotiMsg = ref(false);
 export let googleEmailUpdate = ref(false);
 export let mailRefresh = ref(false);
 
 // 이메일 업데이트
 export async function updateEmails(refresh = false) {
 	const accessToken = localStorage.getItem('accessToken');
-	
-	if(refresh) {
+
+	if (refresh) {
 		mailRefresh.value = true;
 	}
 
@@ -227,65 +265,100 @@ export async function updateEmails(refresh = false) {
 			const res = await fetchGmailEmails(accessToken);
 			// console.log('=== updateEmails === res : ', res);
 			mailList.value = res;
+			if(mailList.value.length) {
+				unreadEmailNotiMsg.value = true;
+			} else {
+				unreadEmailNotiMsg.value = false
+			}
 			googleEmailUpdate.value = false;
 
 			// // console.log('=== updateEmails === res : ', res);
 		} catch (error) {
 			googleEmailUpdate.value = false;
-			console.error('=== updateEmails === error : ', {error});
+			console.error('=== updateEmails === error : ', { error });
 		}
 	}
 }
 
 // 이메일 알림
-export const addEmailNotification = (emailData) => {
-	// // console.log('=== addEmailNotification === emailData : ', emailData);
-	let checkOrigin = realtimes.value.find((audit) => audit.id === emailData.id);
+export const addEmailNotification = (emailData: any) => {
+    // console.log('=== addEmailNotification === emailData : ', emailData);
+    let checkOrigin = realtimes.value.find((audit) => audit.id === emailData.id);
 
-	if(checkOrigin) return;
+    if (checkOrigin) return;
 
-	// const addEmailData = {
-	// 	...emailData,
-	// 	noti_id: emailData.id,
-	// 	send_date: emailData.dateTimeStamp,
-	// 	audit_info: {
-	// 		audit_type: 'email',
-	// 	}
-	// };
+    // // "읽지 않은 메일이 있습니다" 알림이 이미 있는지 확인
+    // let unreadEmailNotification = realtimes.value.find((audit) => audit.audit_info?.audit_type === 'email' && audit.subject === '읽지 않은 메일이 있습니다');
 
-	realtimes.value.push(emailData);
-	realtimes.value = [...realtimes.value].sort((a, b) => b.send_date - a.send_date); // 최신 날짜 순
+    // if (unreadEmailNotification) return;
 
-	// console.log('Updated realtimes:', realtimes.value);
+    const addEmailData = {
+        ...emailData,
+        noti_id: emailData.id,
+        send_date: emailData.dateTimeStamp,
+        audit_info: {
+            audit_type: 'email',
+        },
+        subject: '읽지 않은 메일이 있습니다', // 안내 문구로 대체
+        from: '', // 발신자 정보 제거
+    };
 
-    // notifications.emails.unshift({
-    //     type: 'email',
-    //     title: emailData.subject,
-    //     from: emailData.from,
-    //     date: emailData.date,
-    //     dateTimeStamp: emailData.dateTimeStamp,
-    //     link: emailData.link
-    // });
+    realtimes.value.push(addEmailData);
+    realtimes.value = [...realtimes.value].sort((a, b) => b.send_date - a.send_date); // 최신 날짜 순
+
+    // console.log('Updated realtimes:', realtimes.value);
 
     unreadCount.value++;
-
-	// return notifications.emails;
 }
+
+// export const addEmailNotification = (emailData) => {
+// 	// // console.log('=== addEmailNotification === emailData : ', emailData);
+// 	let checkOrigin = realtimes.value.find((audit) => audit.id === emailData.id);
+
+// 	if (checkOrigin) return;
+
+// 	// const addEmailData = {
+// 	// 	...emailData,
+// 	// 	noti_id: emailData.id,
+// 	// 	send_date: emailData.dateTimeStamp,
+// 	// 	audit_info: {
+// 	// 		audit_type: 'email',
+// 	// 	}
+// 	// };
+
+// 	realtimes.value.push(emailData);
+// 	realtimes.value = [...realtimes.value].sort((a, b) => b.send_date - a.send_date); // 최신 날짜 순
+
+// 	// console.log('Updated realtimes:', realtimes.value);
+
+// 	// notifications.emails.unshift({
+// 	//     type: 'email',
+// 	//     title: emailData.subject,
+// 	//     from: emailData.from,
+// 	//     date: emailData.date,
+// 	//     dateTimeStamp: emailData.dateTimeStamp,
+// 	//     link: emailData.link
+// 	// });
+
+// 	unreadCount.value++;
+
+// 	// return notifications.emails;
+// }
 
 export const newsletterList = ref([]);
 export let getNewsletterListRunning: Promise<any> | null = null;
 
-export const getNewsletterList = async(refresh = false) => {
-	if(getNewsletterListRunning instanceof Promise) {	// 이미 실행중인 경우
+export const getNewsletterList = async (refresh = false) => {
+	if (getNewsletterListRunning instanceof Promise) {	// 이미 실행중인 경우
 		await getNewsletterListRunning;
 		return newsletterList.value;
 	}
-	
+
 	if (newsletterList.value && newsletterList.value.length && !refresh) {	// 기존 데이터가 있는 경우
 		return newsletterList.value;
 	}
 
-	getNewsletterListRunning = skapi.getNewsletters().catch(err => 
+	getNewsletterListRunning = skapi.getNewsletters().catch(err =>
 		console.log(err)
 	).finally(() => {
 		getNewsletterListRunning = null;
@@ -295,17 +368,21 @@ export const getNewsletterList = async(refresh = false) => {
 
 	if (res && res.list) {
 		newsletterList.value = res.list;
-		console.log('newsletterList.value : ', newsletterList.value);
 	}
 
 	return newsletterList.value;
 }
 
 export async function subscribeNotification() {
-	const vapidResponse = await skapi.vapidPublicKey();
-	const vapid = vapidResponse.VAPIDPublicKey;
+	let vapid = localStorage.getItem(skapi.service + '-vapid');
 
-	function urlBase64ToUint8Array(base64String) {
+	if (!vapid) {
+		const vapidResponse = await skapi.vapidPublicKey();
+		vapid = vapidResponse.VAPIDPublicKey;
+		localStorage.setItem(skapi.service + '-vapid', vapid);
+	}
+
+	function urlBase64ToUint8Array(base64String: any) {
 		const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
 		const base64 = (base64String + padding)
 			.replace(/\-/g, "+")
@@ -319,7 +396,7 @@ export async function subscribeNotification() {
 	}
 
 	if (!("serviceWorker" in navigator)) {
-		// console.error("Service workers are not supported in this browser.");
+		console.error("Service workers are not supported in this browser.");
 		serviceWorkerRegistMsg.value = "배너, 배지 기능을 지원하지 않는 브라우저입니다.";
 		return;
 	} else {
@@ -333,11 +410,17 @@ export async function subscribeNotification() {
 
 	const permission = await checkNotificationPermission();
 
-	// const permission = await Notification.requestPermission();
-	console.log({ permission });
 	if (permission !== "granted") {
 		console.error("Permission not granted for notifications");
 		return;
+	}
+	else {
+		let hasSub = window.localStorage.getItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`);
+
+		if (hasSub === user?.user_id) {
+			console.error("Already subscribed");
+			return;
+		}
 	}
 
 	let serviceID = import.meta.env.VITE_SERVICE_ID;
@@ -345,38 +428,54 @@ export async function subscribeNotification() {
 	const registration = await navigator.serviceWorker.register(`/wrk.${serviceID}.js`);
 	await navigator.serviceWorker.ready;
 
-	const subscription = await registration.pushManager
-		.subscribe({
-			userVisibleOnly: true,
-			applicationServerKey: urlBase64ToUint8Array(vapid),
-		})
-		.then((sub) => sub.toJSON()); // Convert to plain object
+	let subscription;
 
-	console.log("Subscription object:", subscription); // Debugging
+	try {
+		subscription = await registration.pushManager
+			.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: urlBase64ToUint8Array(vapid),
+			}).then((sub) => sub.toJSON()) // Convert to plain object
+	
+		console.log("Subscription object:", subscription); // Debugging
+
+	}
+	catch (err) {
+		// console.error("Error subscribing:", err);
+		await unsubscribeNotification();
+		return subscribeNotification();
+	}
+
 	// window.localStorage.setItem("skapi_subscription_obj", JSON.stringify(subscription));
-
 	const response = await skapi.subscribeNotification(subscription.endpoint, subscription.keys);
-	console.log({response})
 
 	let user_local_data = {
 		user_id: user.user_id,
 		subscribeNotification: false,
 	}
 
-	if(response && response.includes('SUCCESS')) {
+	if (response && response.includes('SUCCESS')) {
 		user_local_data.subscribeNotification = true;
 	}
 
 	// localStorage에 subscribeNotification 저장
-	window.localStorage.setItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`, JSON.stringify(user_local_data));
+	window.localStorage.setItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`, user.user_id);
 	return response;
 }
 
 export async function unsubscribeNotification() {
+	// 서비스 워커 지원 여부 확인
+	if (!("serviceWorker" in navigator)) {
+		console.log("Service workers are not supported in this browser");
+		window.localStorage.removeItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`);
+		return;
+	}
+	
 	const registration = await navigator.serviceWorker.ready;
 	const subscription = await registration.pushManager.getSubscription();
-	
+
 	if (!subscription) {
+		window.localStorage.removeItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`);
 		console.error("No subscription found");
 		return;
 	}
@@ -387,25 +486,25 @@ export async function unsubscribeNotification() {
 	await subscription.unsubscribe();
 
 	const response = await skapi.unsubscribeNotification(subscription.endpoint, subscriptionJSON.keys);
-	
+
 	let user_local_data = {
 		user_id: user.user_id,
 		subscribeNotification: true,
 	}
 
-	if(response && response.includes('SUCCESS')) {
+	if (response && response.includes('SUCCESS')) {
 		user_local_data.subscribeNotification = false;
 	}
 
 	// localStorage에 unsubscribeNotification 저장
-	window.localStorage.setItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`, JSON.stringify(user_local_data));
-}
- 
-export function pushNotification(content: { title: string; body: string }, userId: string | string[]) {
-	skapi.pushNotification(content, userId).then((res) => {console.log(res)});											
+	window.localStorage.removeItem(`${import.meta.env.VITE_SERVICE_ID}.loggedInUser`);
 }
 
-watch(user, async(u) => { // 로딩되고 로그인되면 무조건 실행
+export function pushNotification(content: { title: string; body: string }, userId: string | string[]) {
+	skapi.pushNotification(content, userId).then((res) => { console.log(res) });
+}
+
+watch(user, async (u) => { // 로딩되고 로그인되면 무조건 실행
 	if (u && Object.keys(u).length) {
 		await Promise.all([
 			getRealtime(),
@@ -414,56 +513,48 @@ watch(user, async(u) => { // 로딩되고 로그인되면 무조건 실행
 	}
 }, { immediate: true });
 
-// watch([realtimes, readList], () => {
-// 	unreadCount.value = realtimes.value.filter((audit) => !readList.value.includes(audit.noti_id)).length;
-// }, { immediate: true, deep: true });
+watch([realtimes, readList, unreadEmailNotiMsg], () => {
+	// 기존 알림 개수
+	const auditCount = realtimes.value.filter((audit) => !Object.keys(readList.value).includes(audit.noti_id)).length;
 
-watch([realtimes, readList, notifications.emails], () => {
-    // 기존 알림 개수
-    const auditCount = realtimes.value.filter((audit) => !Object.keys(readList.value).includes(audit.noti_id)).length;
-    
-    // 읽지 않은 이메일 개수
-    const emailCount = notifications.emails.length;
+	// 읽지 않은 이메일 개수
+	// const emailCount = notifications.emails.length;
+	const emailCount = unreadEmailNotiMsg.value ? 1 : 0;
 
 	// 이메일 업데이트
-	if(emailCount < 1 && googleEmailUpdate.value === false) {
+	if (emailCount < 1 && googleEmailUpdate.value === false) {
 		updateEmails(true);
 	}
-    
-    // 전체 읽지 않은 알림 개수
-    unreadCount.value = auditCount + emailCount;
+
+	// 전체 읽지 않은 알림 개수
+	unreadCount.value = auditCount + emailCount;
 }, { immediate: true, deep: true });
 
 // 컴포넌트 마운트 시 이메일 업데이트 되는 거에 따른 mails.value 변경 감지
-watch(mailList, (newVal, oldVal) => {
-	// console.log('=== watch === newVal : ', newVal);
-	// console.log('=== watch === oldVal : ', oldVal);
-	// console.log('========== 확인 !! ==========')
-	// console.log(!oldVal);
+// watch(mailList, (newVal, oldVal) => {
+// 	console.log('=== mailList === newVal : ', newVal);
+// 	console.log('=== mailList === oldVal : ', oldVal);
 
-	if(!newVal) {
-		return;
-	}
+// 	if (!newVal) {
+// 		return;
+// 	}
 
-	if((newVal.length && !oldVal) || (newVal.length > oldVal.length) || mailRefresh.value) {
-		// // console.log('=== watch === new email');
-		// console.log('dddd')
-		for(let i in newVal) {
-			addEmailNotification(newVal[i]);
-		}
+// 	if ((newVal.length && !oldVal) || (newVal.length > oldVal.length) || mailRefresh.value) {
+// 		console.log('이메일 읽어 알람 추가');
+// 		unreadEmailNotiMsg.value = true;
+// 		// // "읽지 않은 메일이 있습니다" 알림이 이미 있는지 확인
+// 		// let unreadEmailNotification = realtimes.value.find((audit) => audit.audit_info?.audit_type === 'email' && audit.subject === '읽지 않은 메일이 있습니다');
 
-		mailRefresh.value = false;
-	} else {
-		// console.log('wwww');
-	}
+// 		// if (!unreadEmailNotification) {
+// 		// 	addEmailNotification(newVal[0]);
+// 		// }
 
-	// if(newVal[0].dateTimeStamp > oldVal[0].dateTimeStamp) {
-	//     // console.log('=== watch === new email');
-	//     // addEmailNotification(newVal[0]);
-	// 	for(let i in newVal) {
-	// 		addEmailNotification(newVal[i]);
-	// 	}
-	// } else {
-	//     // console.log('=== watch === no new email');
-	// }
-});
+// 		// for (let i in newVal) {
+// 		// 	addEmailNotification(newVal[i]);
+// 		// }
+
+// 		mailRefresh.value = false;
+// 	} else {
+// 		unreadEmailNotiMsg.value = false;
+// 	}
+// });

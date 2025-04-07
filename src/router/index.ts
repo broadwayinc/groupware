@@ -3,7 +3,6 @@ import { user } from '@/user';
 
 import Login from '@/views/Login.vue';
 // import Change_password from '@/views/Change_password.vue';
-import Profile from '@/views/Profile.vue';
 import Main from '@/views/Main.vue';
 import Dashboard from '@/views/Dashboard.vue';
 // import List_employee from '@/views/List_employee.vue';
@@ -18,6 +17,7 @@ import Admin from '@/views/admin/Admin.vue';
 // import Admin_edit_divisions from '@/views/admin/Admin_edit_divisions.vue';
 // import Admin_list_divisions from '@/views/admin/Admin_list_divisions.vue';
 import Approval from '@/views/approval/Approval.vue';
+import NotFound from '@/views/NotFound.vue';
 // import Approval_request_audit from '@/views/approval/Approval_request_audit.vue';
 // import Approval_request_list from '@/views/approval/Approval_request_list.vue';
 // import Approval_audit_list from '@/views/approval/Approval_audit_list.vue';
@@ -28,10 +28,18 @@ const router = createRouter({
 	routes: [
 		{
 			path: '/login',
+			beforeEnter: (to, from, next) => {
+				// console.log('beforeEnter for /login', { user });
+				if (Object.keys(user).length) {
+					next({ name: 'home' });
+					return;
+				}
+				next();
+			},
 			name: 'login',
 			component: Login,
 		},
-			{
+		{
 			path: '/verification',
 			name: 'verification',
 			component: () => import('@/views/Verification.vue'),
@@ -58,6 +66,13 @@ const router = createRouter({
 		// },
 		{
 			path: '/',
+			beforeEnter: (to, from, next) => {
+				if (!Object.keys(user).length) {
+					next({ name: 'login' });
+					return;
+				}
+				next();
+			},
 			component: Main,
 			children: [
 				{
@@ -111,7 +126,7 @@ const router = createRouter({
 						{
 							path: 'request-audit',
 							name: 'request-audit',
-							  component: () => import('@/views/approval/Approval_request_audit.vue'), // Approval_request_audit,
+							component: () => import('@/views/approval/Approval_request_audit.vue'), // Approval_request_audit,
 							// component: () => import('@/views/approval/Approval_request_audit_qb.vue'), // Approval_request_audit,
 						},
 						{
@@ -125,6 +140,11 @@ const router = createRouter({
 							component: () => import('@/views/approval/Approval_audit_list.vue'),
 						},
 						{
+							path: 'audit-list-favorite',
+							name: 'audit-list-favorite',
+							component: () => import('@/views/approval/Approval_audit_list.vue'), // 즐겨찾기한 결재 리스트
+						},
+						{
 							path: 'audit-detail/:auditId',
 							name: 'audit-detail',
 							component: () => import('@/views/approval/Approval_audit_detail.vue'),
@@ -133,6 +153,11 @@ const router = createRouter({
 							path: 'audit-detail-reference/:auditId',
 							name: 'audit-detail-reference',
 							component: () => import('@/views/approval/Approval_audit_detail.vue'),
+						},
+						{
+							path: 'audit-detail-favorite/:auditId',
+							name: 'audit-detail-favorite', 
+							component: () => import('@/views/approval/Approval_audit_detail.vue')
 						},
 					],
 				},
@@ -152,7 +177,7 @@ const router = createRouter({
 						{
 							path: 'edit-mystamp',
 							name: 'edit-mystamp',
-							component: ()=>import('@/views/mypage/Mypage_edit_mystamp.vue')
+							component: () => import('@/views/mypage/Mypage_edit_mystamp.vue')
 						},
 						// {
 						// 	path: 'edit-myfile',
@@ -171,9 +196,9 @@ const router = createRouter({
 					beforeEnter: (to, from, next) => {
 						if (user.access_group > 98) {
 							next();
-						} else {
-							next({ name: 'home' });
+							return;
 						}
+						next({ name: 'home' });
 					},
 					children: [
 						{
@@ -211,28 +236,22 @@ const router = createRouter({
 							name: 'commute-detail',
 							component: () => import('@/views/admin/Admin_commute_detail.vue'),  //Admin_commute_detail,
 						},
-							{
+						{
 							path: 'edit-worktime',
 							name: 'edit-worktime',
 							component: () => import('@/views/admin/Admin_edit_worktime.vue'), // Admin_edit_worktime,
 						},
-						// {
-						//   path: 'list-employee',
-						//   name: 'list-employee',
-						//   component: () => import('@/views/List_employee.vue'), // List_employee,
-						// },
-						// {
-						//   path: '/detail-employee/:userId',
-						//   name: 'detail-employee',
-						//   component: () => import('@/views/List_detail_employee.vue'), // List_detail_employee,
-						//   props: true,
-						// },
+						{
+							path: 'list-form',
+							name: 'list-form',
+							component: () => import('@/views/admin/Admin_list_form.vue'),  // 마스터가 올린 결재 양식 리스트,
+						},
+						{
+							path: 'form-detail',
+							name: 'form-detail',
+							component: () => import('@/views/admin/Admin_form_detail.vue'),  // 마스터가 올린 결재 양식 리스트 상세,
+						},
 					],
-				},
-				{
-					path: '/profile',
-					name: 'profile',
-					component: Profile,
 				},
 				{
 					path: '/component',
@@ -255,6 +274,17 @@ const router = createRouter({
 		//   // which is lazy-loaded when the route is visited.
 		//   component: () => import('../views/AboutView.vue')
 		// }
+
+		// 404 page
+		{
+			path: "/404page",
+			name: "404page",
+			component: NotFound
+		},
+		{
+			path: "/:pathMatch(.*)*",
+			redirect: "/404page"
+		},
 	],
 });
 

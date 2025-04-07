@@ -17,11 +17,11 @@ template(v-else)
 		button.btn.bg-gray(@click="router.push('/newsletter')") 목록으로
 </template>
 
-<script lang="ts" setup>
+<script setup>
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { skapi } from '@/main';
-import { newsletterList, getNewsletterListRunning, getNewsletterList } from '@/notifications'
+import { newsletterList } from '@/notifications'
 import { convertTimestampToDateMillis } from "@/utils/time";
 
 import Loading from '../components/loading.vue';
@@ -42,7 +42,7 @@ let getCurrentNewsletter = async() => {
 
 	loading.value = true;
 
-	let findNewsletter = newsletterList.value.find((news: { message_id: string; }) => news.message_id === message_id);
+	let findNewsletter = newsletterList.value.find((news) => news.message_id === message_id);
 
 	if(findNewsletter) {
 		currentNewsletter.value = findNewsletter;
@@ -53,7 +53,7 @@ let getCurrentNewsletter = async() => {
 			searchFor: 'message_id',
 			value: message_id,
 			group: 'public'
-		}).then((res: any) => {
+		}).then((res) => {
 			if(res && res.list.length > 0) {
 				currentNewsletter.value = res.list[0];
 			}
@@ -64,7 +64,7 @@ let getCurrentNewsletter = async() => {
 	}
 }
 
-async function fetchHtml(url: string) {
+async function fetchHtml(url) {
 	loading.value = true;
 
 	try {
@@ -74,7 +74,13 @@ async function fetchHtml(url: string) {
 			throw new Error(`HTTP error! status: ${response.status}`);
 		}
 		const html = await response.text(); // 응답을 텍스트로 변환
-		htmlContent.value = html; // 가져온 HTML을 반응형 변수에 할당
+		// htmlContent.value = html; // 가져온 HTML을 반응형 변수에 할당
+		
+		// html 안에 <div dir="ltr"></div> 만 가져오기
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html');
+		const content = doc.querySelector('div[dir="ltr"]');
+		htmlContent.value = content?.innerHTML || '<p>콘텐츠를 불러오는 데 실패했습니다.</p>';
 	} catch (error) {
 		loading.value = false;
 		console.error('HTML을 가져오는 중 오류 발생:', error);

@@ -10,7 +10,7 @@ hr
 			.image
 				img#profile-img(:src="currentEmp?.picture" alt="profile image")
 
-			.util-wrap
+			//- .util-wrap
 				.util-btn(:class="{'disabled' : !currentEmp?.phone_number}")
 					a.click-btn(:href="'tel:' + currentEmp?.phone_number" style="display: block;")
 						svg
@@ -49,11 +49,14 @@ hr
 			
 		.input-wrap
 			p.label 이름
-			input(type="text" name="name" :value="currentEmp?.name || '-' "  placeholder="이름을 입력해주세요." disabled)
+			input(type="text" name="name" :value="currentEmp?.name || '-' "  placeholder="이름을 입력해주세요." :readonly="disabled" disabled required)
 
 		.input-wrap
 			p.label 이메일
 			input(type="email" name="email" :value="currentEmp?.email || '-' " placeholder="예) user@email.com" disabled)
+			.icon(v-if="currentEmp?.email" @click="copy(currentEmp?.email)")
+				svg
+					use(xlink:href="@/assets/icon/material-icon.svg#icon-file-copy-fill")
 
 		.input-wrap
 			p.label 생년월일
@@ -62,12 +65,16 @@ hr
 		.input-wrap
 			p.label 전화번호
 			input(type="tel" name="phone_number" :value="currentEmp?.phone_number || '-' " placeholder="예) +821012345678" disabled)
+			.icon(v-if="currentEmp?.phone_number")
+				a(:href="'tel:' + currentEmp?.phone_number")
+					svg
+						use(xlink:href="@/assets/icon/material-icon.svg#icon-phone-call")
 
 		.input-wrap
 			p.label 주소
 			input(type="text" name="address" :value="currentEmp?.address || '-' " placeholder="예) 서울시 마포구" disabled)
 
-		.input-wrap.upload-file
+		.input-wrap.upload-file(v-if="user.access_group > 98 || user.user_id === currentEmp?.user_id")
 			p.label(style="margin-bottom: 0;") 기타자료
 			template(v-if="!disabled")
 				.btn-upload-file
@@ -112,13 +119,15 @@ br
 br  
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { useRoute, useRouter } from 'vue-router';
 import { ref, onMounted, nextTick } from 'vue';
 import { skapi, mainPageLoading } from '@/main';
 import { user, makeSafe } from '@/user';
 import { divisionNameList, getDivisionNames } from '@/division'
 import { getEmpDivisionPosition, getUsers, employeeDict } from '@/employee';
+import { openGmailAppOrWeb } from '@/utils/mail';
+
 const router = useRouter();
 const route = useRoute();
 
@@ -140,7 +149,7 @@ let access_group = {
 };
 
 const userId = route.params.userId;
-getUsers({searchFor: "user_id", value: userId}).then(li => Promise.all(li.map((l: any) => getEmpDivisionPosition(l)))).then(res=>{
+getUsers({searchFor: "user_id", value: userId}).then(li => Promise.all(li.map((l) => getEmpDivisionPosition(l)))).then(res=>{
 	if(res.length === 0) {
 		window.alert('해당 직원을 찾을 수 없습니다.');
 		router.push('/list-employee');
@@ -148,7 +157,6 @@ getUsers({searchFor: "user_id", value: userId}).then(li => Promise.all(li.map((l
 
 	let emp = res[0];
 	currentEmp.value = emp;
-	console.log({emp});
 	
 	currentEmpTags.value.emp_dvs = emp.division || '';
 	currentEmpTags.value.emp_pst = emp.position || '';
@@ -157,8 +165,12 @@ getUsers({searchFor: "user_id", value: userId}).then(li => Promise.all(li.map((l
 // 부서 목록 가져오기
 getDivisionNames();
 
-// 추가자료 가져오기    
+// 추가자료 가져오기
 let getAdditionalData = () => {
+    if (user.access_group < 99 && user.user_id !== userId) {
+		return;
+	};
+
 	skapi.getRecords({
 		table: {
 			name: 'emp_additional_data',
@@ -169,7 +181,7 @@ let getAdditionalData = () => {
 		if(res.list.length > 0) {
 			let fileList = [];
 
-			function getFileUserId(str: string) {
+			function getFileUserId(str) {
 				if (!str) return '';
 
 				return str.split('/')[3]
@@ -195,7 +207,7 @@ getAdditionalData();
 
 // 부서 목록 옵션으로 가져오기 (회원 수정시 사용)
 let displayDivisionOptions = () => {
-	let divisionList = document.querySelector(`select[name="division"]`) as HTMLSelectElement;
+	let divisionList = document.querySelector(`select[name="division"]`);
 
 	// 기존 옵션을 제거하지 않고 새로운 옵션을 추가
 	divisionList.innerHTML = ''; // 기존 옵션 초기화
@@ -237,11 +249,21 @@ let displayDivisionOptions = () => {
 	divisionList.disabled = false;
 }
 
-let sendMail = async (mail: string) => {
+let sendMail = async (mail) => {
 	const maillink = encodeURIComponent(mail);
-	const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${maillink}`;
-    
-    window.open(gmailUrl, "_blank"); // 새 탭에서 Gmail 열기
+
+    openGmailAppOrWeb(maillink);
+}
+
+let copy = (text) => {
+    let doc = document.createElement('textarea');
+    doc.textContent = text;
+    document.body.append(doc);
+    doc.select();
+    document.execCommand('copy');
+    doc.remove();
+
+	alert('이메일이 복사되었습니다.');
 }
 
 // 파일 업로드 리스트 업데이트
@@ -294,7 +316,7 @@ let registerEmp = async(e) => {
 	if(currentEmpOriginal.division !== currentEmpTags.value.emp_dvs || currentEmpOriginal.position !== currentEmpTags.value.emp_pst) {
 		skapi.postRecord(null, {
 			table: {
-				name: 'emp_division',
+				name: 'emp_division' + user_id_safe,
 				access_group: 1
 			},
 			tags: ["[emp_pst]" + currentEmpTags.value.emp_pst, "[emp_id]" + user_id_safe, "[emp_dvs]" + currentEmpTags.value.emp_dvs]
@@ -408,6 +430,7 @@ onMounted(async () => {
 		justify-content: center;
 	}
 	.input-wrap {
+		position: relative;
 		margin-top: 16px;
 
 		input {
@@ -430,6 +453,25 @@ onMounted(async () => {
 
 		select {
 			border-color: var(--primary-color-400);
+		}
+
+		.icon {
+			position: absolute;
+			bottom: 12px;
+			right: 0px;
+			cursor: pointer;
+
+			&:hover {
+				svg {
+					transform: scale(1.1);
+				}
+			}
+
+			svg {
+				width: 1.2rem;
+				height: 1.2rem;
+				fill: var(--primary-color-400-dark);
+			}
 		}
 	}
 

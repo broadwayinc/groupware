@@ -48,7 +48,8 @@ ul.card-wrap
                 .icon
                     svg
                         use(xlink:href="@/assets/icon/material-icon.svg#icon-arrow-forward-ios")
-    li.card
+
+    li.card(v-if="!googleAccountCheck")
         router-link.router(to="/change-password")
             .icon.img
                 svg
@@ -61,12 +62,14 @@ ul.card-wrap
                         use(xlink:href="@/assets/icon/material-icon.svg#icon-arrow-forward-ios")
 </template>
 
-<script setup lang="ts">
+<script setup>
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const router = useRouter();
 const route = useRoute();
 
+const googleAccountCheck = ref(localStorage.getItem('accessToken') ? true : false);
 </script>
 
 <style scoped lang="less">

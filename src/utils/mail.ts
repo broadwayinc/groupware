@@ -1,4 +1,7 @@
-async function fetchGmailEmails(accessToken) {
+import { refreshAccessToken } from "../main";
+import { user } from "../user";
+
+async function fetchGmailEmails(accessToken: any) {
     if (!accessToken) {
         console.error('액세스 토큰이 없어 이메일을 가져올 수 없습니다.');
         return [];
@@ -16,8 +19,9 @@ async function fetchGmailEmails(accessToken) {
             if (response.status === 401) {
                 console.error('액세스 토큰이 만료되었습니다.');
                 // 세션 스토리지 토큰 삭제
-                localStorage.removeItem('accessToken');
-                return [];
+
+                await refreshAccessToken();
+                return fetchGmailEmails(localStorage.getItem('accessToken'));
             }
             throw new Error(`API 응답 오류: ${response.status}`);
         }
@@ -27,7 +31,7 @@ async function fetchGmailEmails(accessToken) {
 
         // 메일 상세 정보 모두 가져오기
         const detailedMails = await Promise.all(
-            messages.map(message => fetchMessageDetails(accessToken, message.id, message.threadId))
+            messages.map((message: any) => fetchMessageDetails(accessToken, message.id, message.threadId))
         );
         // console.log('detailedMails : ', detailedMails);
 
@@ -37,25 +41,37 @@ async function fetchGmailEmails(accessToken) {
         // 최신 5개 메일만 가져오기
         return detailedMails.splice(0, 5);
     } catch (error) {
-        sessionStorage.clear();
         console.error('Error fetching Gmail emails:', error);
         return [];
     }
 }
 
-async function fetchMessageDetails(accessToken, messageId, threadId) {
+async function fetchMessageDetails(accessToken: any, messageId: any, threadId: any) {
     try {
         const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${messageId}`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
             }
         });
+
+        // 토큰 만료 또는 오류 처리
+        if (!response.ok) {
+            if (response.status === 401) {
+                console.error('액세스 토큰이 만료되었습니다.');
+                // 세션 스토리지 토큰 삭제
+
+                await refreshAccessToken();
+                return fetchMessageDetails(localStorage.getItem('accessToken'), messageId, threadId);
+            }
+            throw new Error(`API 응답 오류: ${response.status}`);
+        }
+
         const data = await response.json();
         const headers = data.payload.headers;
         // console.log('=== fetchMessageDetails === headers : ', headers);
-        const subjectHeader = headers.find(header => header.name === 'Subject');
-        const fromHeader = headers.find(header => header.name === 'From');
-        const dateHeader = headers.find(header => header.name === 'Date');
+        const subjectHeader = headers.find((header: any) => header.name === 'Subject');
+        const fromHeader = headers.find((header: any) => header.name === 'From');
+        const dateHeader = headers.find((header: any) => header.name === 'Date');
         const rawDate = dateHeader ? dateHeader.value : null;
         const snippet = data.snippet;
         const hasAttachment = checkForAttachments(data.payload);
@@ -73,11 +89,11 @@ async function fetchMessageDetails(accessToken, messageId, threadId) {
             link: `https://mail.google.com/mail/u/0/#inbox/${threadId}`,
             hasAttachment: hasAttachment,
             dateTimeStamp: convertToTimestamp(rawDate),
-			noti_id: messageId,
-			send_date: convertToTimestamp(rawDate),
-			audit_info: {
-				audit_type: 'email',
-			}
+            noti_id: messageId,
+            send_date: convertToTimestamp(rawDate),
+            audit_info: {
+                audit_type: 'email',
+            }
         };
     } catch (error) {
         console.error('Error fetching message details:', error);
@@ -93,7 +109,7 @@ async function fetchMessageDetails(accessToken, messageId, threadId) {
     }
 }
 
-function extractSenderName(fromValue) {
+function extractSenderName(fromValue: any) {
     const nameRegex = /"([^"]+)"|([^<]+)</;
     const match = nameRegex.exec(fromValue);
 
@@ -101,7 +117,7 @@ function extractSenderName(fromValue) {
 }
 
 // 메일 날짜 형식 변환 (ex. 2025/1/1)
-function formatMailDate(dateString) {
+function formatMailDate(dateString: any) {
     const date = new Date(dateString);
     const year = date.getFullYear() % 100; // 연도의 마지막 두 자리 (2025 -> 25)
     const month = date.getMonth() + 1;    // 월 (0부터 시작하므로 +1)
@@ -111,10 +127,10 @@ function formatMailDate(dateString) {
 }
 
 // 첨부파일 확인
-function checkForAttachments(payload) {
+function checkForAttachments(payload: any) {
     // 첨부파일이 있는 경우 filename과 mimeType이 존재
     if (payload.parts) {
-        return payload.parts.some(part => 
+        return payload.parts.some((part: any) =>
             part.filename && part.filename.length > 0
         );
     }
@@ -122,7 +138,7 @@ function checkForAttachments(payload) {
 }
 
 // 날짜 문자열을 타임스탬프로 변환
-function convertToTimestamp(dateTimeString) {
+function convertToTimestamp(dateTimeString: any) {
     // 날짜 객체 생성
     const date = new Date(dateTimeString);
     // 타임스탬프로 변환 (밀리초 단위)
@@ -130,4 +146,81 @@ function convertToTimestamp(dateTimeString) {
     return timestamp;
 }
 
-export { fetchGmailEmails, fetchMessageDetails, extractSenderName, formatMailDate, checkForAttachments };
+function openGmailAppOrWeb(link:string | null, show = false) {
+	// Gmail 앱용 딥 링크
+	let gmailAppUrlIOS = '';
+	// const gmailAppUrlAndroid = `intent://co?to=${maillink}#Intent;scheme=googlegmail;package=com.google.android.gm;end`;
+	let gmailAppUrlAndroid = '';
+	// 웹용 Gmail 링크
+	let gmailWebUrl = '';
+
+	if(link) {
+		if(show) {
+			// Gmail 앱 내에서 특정 이메일 보기 (현재 Gmail 앱의 URL 스킴으로는 지원되지 않음, 웹 버전으로 폴백)
+			gmailWebUrl = link;
+			// console.log('특정 이메일 보기 : ', gmailWebUrl);
+			// console.log('특정 이메일 보기 : ', show);
+		} else {
+			// 특정 이메일 주소 메일 작성하는 경우
+			gmailAppUrlIOS = `googlegmail:///co?to=${link}`;
+			gmailAppUrlAndroid = `mailto:${link}`;
+			// gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${link}`;
+			gmailWebUrl = `https://mail.google.com/mail/u/${encodeURIComponent(user.email)}/?view=cm&fs=1&to=${encodeURIComponent(link)}&authuser=${encodeURIComponent(user.email)}&login_hint=${encodeURIComponent(user.email)}`;
+			// const gmailWebUrl = `https://mail.google.com/mail/u/${encodeURIComponent(email)}/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&authuser=${encodeURIComponent(email)}&login_hint=${encodeURIComponent(email)}`;
+		}
+	} else {
+		// 기본 Gmail 앱 메일함 열기
+		gmailAppUrlIOS = `googlegmail://`;
+		gmailAppUrlAndroid = `intent://gmail/#Intent;scheme=android-app;package=com.google.android.gm;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.google.android.gm;end;`;
+		// gmailAppUrlAndroid = `intent://co#Intent;scheme=googlegmail;package=com.google.android.gm;end`;
+		// gmailAppUrlAndroid = `intent://#Intent;scheme=googlegmail;package=com.google.android.gm;end`;
+		gmailWebUrl = `https://mail.google.com/mail/u/0/#inbox`;
+	}
+
+	const googleAccountCheck = localStorage.getItem('accessToken') ? true : false;
+
+	if(googleAccountCheck) {
+		const encodedEmail = encodeURIComponent(user.email);
+        gmailWebUrl = `https://mail.google.com/mail/u/${encodedEmail}/?authuser=${encodedEmail}&login_hint=${encodedEmail}`;
+	}
+
+	console.log('googleAccountCheck : ', googleAccountCheck);
+	console.log('gmailWebUrl : ', gmailWebUrl);
+
+    try {
+        if (!show && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            // iOS: Gmail 앱 딥 링크 호출
+            window.location.href = gmailAppUrlIOS;
+        } else if (!show && /Android/i.test(navigator.userAgent)) {
+            // Android: Gmail 앱 딥 링크 호출
+            const fallbackTimeout = 1000; // 1초 대기 시간
+            let appOpened = false;
+
+            // Gmail 앱 딥 링크 호출
+            window.location.href = gmailAppUrlAndroid;
+
+            // Gmail 앱이 열리지 않으면 웹 버전으로 폴백
+            setTimeout(() => {
+                if (!appOpened) {
+                    // console.log("Gmail app not opened, redirecting to web version...");
+                    window.open(gmailWebUrl, "_blank");
+                }
+            }, fallbackTimeout);
+
+            // Gmail 앱이 열렸는지 확인 (사용자 정의 플래그)
+            window.addEventListener("blur", () => {
+                appOpened = true;
+            });
+        } else {
+            // 기타 플랫폼에서는 웹 버전으로 이동
+            window.open(gmailWebUrl, "_blank");
+			// console.log('웹 버전 열림')
+        }
+    } catch (error) {
+        console.error("Failed to open Gmail app, redirecting to web version...", error);
+        // 에러 발생 시 웹 버전으로 이동
+        window.open(gmailWebUrl, "_blank");
+    }
+}
+
+export { fetchGmailEmails, fetchMessageDetails, extractSenderName, formatMailDate, checkForAttachments, openGmailAppOrWeb };

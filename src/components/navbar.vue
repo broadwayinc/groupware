@@ -3,7 +3,7 @@ nav#navbar(ref="navbar")
     .navbar-wrap
         .logo
             router-link.img-logo(to="/")
-                img(src="/icon-192.png" style="width: 2rem;")
+                img(src="/img_fgworks_logo.png")
             button.btn-close(@click="toggleNavbarFold")
                 .icon
                     svg
@@ -19,7 +19,8 @@ nav#navbar(ref="navbar")
                                 use(:href="getIconPath(item.icon)")
                         .text 
                             span {{ item.text }}
-                    router-link.router(v-if="!item.isExternal" :to="item.to" @click="item.child && handleMenuClick($event, item.name)")
+                    //- 하위 메뉴가 있는 경우 router-link 대신 일반 a 태그 사용하여 네비게이션 방지
+                    a.router(v-if="!item.isExternal && item.child" @click="handleMenuClick($event, item.name)")
                         .icon
                             svg
                                 use(:href="getIconPath(item.icon)")
@@ -27,9 +28,16 @@ nav#navbar(ref="navbar")
                             span {{ item.text }}
                             svg.arrow(v-if="item.child" :class="{'down': item.child.name === activeMenu}")
                                 use(xlink:href="@/assets/icon/material-icon.svg#icon-arrow-forward-ios")
+                    //- 하위 메뉴가 없는 경우만 router-link 사용
+                    router-link.router(v-if="!item.isExternal && !item.child" :to="item.to" @click.native="handleLinkClick(item.to)")
+                        .icon
+                            svg
+                                use(:href="getIconPath(item.icon)")
+                        .text 
+                            span {{ item.text }}
                     ul.sub-menu-item(v-if="item.child && item.child.name === activeMenu")
                         li(v-for="child in item.child.list" :key="child.name" :class="{'active': route.name === child.name}")
-                            router-link(:to="child.to") {{ child.text }}
+                            router-link(:to="child.to" @click.native="handleLinkClick(item.to)") {{ child.text }}
 
 </template>
 
@@ -45,7 +53,46 @@ const route = useRoute();
 
 let navbar = ref(null);
 let activeMenu = ref(null);
-let googleAccountCheck = localStorage.getItem('accessToken') ? true : false;
+// let googleAccountCheck = localStorage.getItem('accessToken') ? true : false;
+const googleAccountCheck = computed(() => !!localStorage.getItem('accessToken'));
+const encodedEmail = encodeURIComponent(user.email);
+
+const handleLinkClick = (to) => {
+    if (route.path === to || route.path.startsWith(to) || isSubMenuPath(to)) {
+        closeMobileNavbar();
+    }
+
+    if (route.path === to) {
+        // 해당 메뉴에 active 클래스 추가
+        // '/' 경로인 경우 직접 'home'으로 설정
+        activeMenu.value = to === '/' ? 'home' : to.split('/')[1];
+    }
+};
+
+const isSubMenuPath = (to) => {
+    return menuList.value.some(item => {
+        if (item.child) {
+            return item.child.list.some(child => route.path === child.to);
+        }
+        return false;
+    });
+};
+
+// 메뉴 toggle
+const handleMenuClick = (event, menuName) => {
+    // 이미 열린 메뉴를 클릭하면 닫기
+    if (activeMenu.value === menuName) {
+        activeMenu.value = null; // 이미 열린 메뉴를 클릭하면 닫기
+    } else {
+        event.preventDefault(); // 페이지 이동을 막고 메뉴만 토글
+        activeMenu.value = menuName;
+    }
+};
+
+const closeMobileNavbar = () => {
+    isOpen.value = false;
+    document.body.classList.remove('open');
+};
 
 // isadmin을 computed로 변경하여 반응성 부여
 const isadmin = computed(() => user.access_group > 98);
@@ -63,13 +110,13 @@ const menuList = computed(() => [
         show: true,
         name: 'home',
         to: '/',
-        icon: '#icon-dashboard',
-        text: '대시보드',
+        icon: '#icon-home',
+        text: '홈',
     },
     {
-        show: googleAccountCheck,
+        show: googleAccountCheck.value,
         name: 'email',
-        to: 'https://mail.google.com/mail/u/0/#inbox',
+        to: `https://mail.google.com/mail/u/${encodedEmail}/?authuser=${encodedEmail}&login_hint=${encodedEmail}`,
         icon: '#icon-mail',
         text: '이메일',
         isExternal: true  // 외부 링크 표시
@@ -89,19 +136,24 @@ const menuList = computed(() => [
                     text: '결재 작성',
                 },
                 {
-                    name: 'audit-list',
-                    to: '/approval/audit-list',
-                    text: '수신함',
-                },
-                {
                     name: 'request-list',
                     to: '/approval/request-list',
-                    text: '발신함',
+                    text: '결재 발신함',
+                },
+                {
+                    name: 'audit-list',
+                    to: '/approval/audit-list',
+                    text: '결재 수신함',
                 },
                 {
                     name: 'audit-reference',
                     to: '/approval/audit-reference',
-                    text: '수신참조',
+                    text: '수신 참조함',
+                },
+                {
+                    name: 'audit-list-favorite',
+                    to: '/approval/audit-list-favorite',
+                    text: '중요 결재함',
                 },
             ]
         }
@@ -133,14 +185,15 @@ const menuList = computed(() => [
                 {
                     name: 'record-commute',
                     to: '/mypage/record-commute',
-                    text: '근태 관리',
+                    text: '출퇴근 관리',
                 },
                 {
+                    show: !googleAccountCheck.value, // 구글 로그인 시 비밀번호 변경 메뉴 숨기기
                     name: 'change-password',
                     to: '/change-password',
                     text: '비밀번호 변경',
                 },
-            ]
+            ].filter(item => item.show !== false) // show가 false인 항목을 필터링
         }
     },
     {
@@ -166,6 +219,11 @@ const menuList = computed(() => [
                     name: 'list-commute',
                     to: '/admin/list-commute',
                     text: '근태 관리',
+                },
+                {
+                    name: 'list-form',
+                    to: '/admin/list-form',
+                    text: '결재 양식 관리',
                 }
             ]
         }
@@ -196,6 +254,7 @@ const menuList = computed(() => [
 // closeNavbar도 computed로 변경하여 menuList 변화에 따라 자동 업데이트
 const closeNavbar = computed(() => {
     let arr = [];
+
     menuList.value.forEach(item => {
         if(item.child) {
             arr.push(item.child.list.map(child => child.name));
@@ -203,6 +262,7 @@ const closeNavbar = computed(() => {
             arr.push(item.name);
         }
     });
+
     let newArr = new Set(arr.flat());
     return [...newArr];
 });
@@ -220,16 +280,6 @@ const getIconPath = computed(() => (iconName) => {
     return `${MaterialIcon}${iconName}`
 });
 
-// 메뉴 toggle
-const handleMenuClick = (event, menuName) => {
-  if (activeMenu.value === menuName) {
-    activeMenu.value = null; // 이미 열린 메뉴를 클릭하면 닫기
-  } else {
-    event.preventDefault(); // 페이지 이동을 막고 메뉴만 토글
-    activeMenu.value = menuName;
-  }
-};
-
 onMounted(() => {
     checkScreenWidth();
     window.addEventListener('resize', checkScreenWidth);
@@ -241,13 +291,12 @@ onUnmounted(() => {
     window.removeEventListener('click', checkNavbarClose);
 });
 
-// route watch 함수는 이전과 동일
 watch(() => route.fullPath, (nv) => {
     let currentPath = nv.split('/');
     let currentPathName = currentPath[currentPath.length - 1];
     let currentFullPath = nv.replace(/^\//, '');
     
-    currentPathName === '' ? currentPathName = 'home' : currentPathName;
+    currentPathName = currentPathName === '' ? 'home' : currentPathName; // 빈 문자열이면 'home'으로 설정(값을 재할당하도록 수정)
     
     if(closeNavbar.value.includes(currentPathName) && isOpen.value) {
         isOpen.value = false;
@@ -285,6 +334,11 @@ watch(() => route.fullPath, (nv) => {
             return;
         }
     }
+
+    // 홈페이지(/)로 이동했을 때 activeMenu를 'home'으로 명시적 설정
+    if (nv === '/') {
+        activeMenu.value = 'home';
+    }
 }, { immediate: true });
 </script>
 
@@ -298,7 +352,7 @@ watch(() => route.fullPath, (nv) => {
     left: 0;
     overflow-y: overlay;
     background-color: #fff;
-    box-shadow: 5px 1px 30px rgba(0,0,0,0.05);
+    box-shadow: 5px 1px 20px rgba(0,0,0,0.2);
     z-index: 9999;
     // transition: width 0.15s linear;
     transition: left 0.15s linear;
@@ -315,15 +369,22 @@ watch(() => route.fullPath, (nv) => {
         flex-wrap: nowrap;
         align-items: center;
         justify-content: space-between;
-        padding: 0 20px;
+        padding: 1rem 20px 0;
         margin-bottom: 30px;
         cursor: pointer;
+       
+        a {
+            padding: 0 16px;
+        }
 
         .img-logo {
-            // width: 2.5rem;
-            // height: 2.5rem;
-            padding: 0 16px;
+            width: 12rem;
+            padding: 0 0 0 16px;
 
+            img {
+                width: calc(12rem - 16px);
+            }
+            
             svg {
                 width: 2rem;
                 height: 2rem;
@@ -333,10 +394,16 @@ watch(() => route.fullPath, (nv) => {
 
     .btn-close {
         display: none;
+        position: relative;
+        top: 6px;
+
+        .icon {
+            padding: 0;
+        }
     }
 
     .menu-item {
-        padding: 20px 16px 0;
+        padding: 20px 16px 40px;
 
         .item {
             margin-top: 0.8rem;
@@ -465,9 +532,16 @@ watch(() => route.fullPath, (nv) => {
 }
 
 @media (max-width: 1200px)  {
+    #navbar {
+        .btn-close {
+            display: block;
+        }
+    }
+
     .open {
         #navbar {
             left: 0;
+            width: 100% !important;
         }
     }
 }
@@ -475,16 +549,18 @@ watch(() => route.fullPath, (nv) => {
 @media (max-width: 768px) {
     .open {
         #navbar {
-            width: 100% !important;
-
-            .btn-menu {
-                display: none;
-            }
-            
-            .btn-close {
-                display: block;
-            }
+            // width: 100% !important;
         }
     }
+}
+
+@media (hover: none) {
+  #navbar .menu-item .item:hover .router {
+    background-color: transparent !important;
+  }
+
+  #navbar .menu-item .item.active:hover .router {
+    background-color: var(--primary-color-400) !important;
+  }
 }
 </style>

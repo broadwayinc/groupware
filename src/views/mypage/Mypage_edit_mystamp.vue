@@ -6,6 +6,9 @@ hr
 
 .form-wrap
     .form-inner
+        button.btn.outline.refresh-icon(:disabled="loading" @click="refresh")
+            svg(:class="{'rotate' : loading}")
+                use(xlink:href="@/assets/icon/material-icon.svg#icon-refresh")
         .stamp-wrap
             input#stamp-file(ref="stamp_file_input" name="stamp_data" type="file" accept="image/*" @change="uploadStamp" style="display: none")
 
@@ -57,7 +60,7 @@ AlertModal(:open="!!selectedStamp")
 
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { skapi, mainPageLoading } from '@/main';
 import { user, makeSafe } from '@/user';
@@ -68,6 +71,7 @@ import MakeStamp from '@/components/make_stamp.vue';
 import AlertModal from '@/components/alert_modal.vue';
 import Loading from '@/components/loading.vue';
 
+let loading = ref(false);
 let showOptions = ref(false);
 let stamp_file_input = ref(null);
 let optionsBtn = ref(null);
@@ -163,7 +167,7 @@ let uploadStamp = async () => {
 let deleteStampRunning = ref(false);
 let deleteStampStep = ref(1);
 
-let deleteStamp = async(stamp: object) => {
+let deleteStamp = async(stamp) => {
     if(!uploadedRecordId.value) return;
     if(!selectedStamp.value) return;
 
@@ -180,11 +184,6 @@ let deleteStamp = async(stamp: object) => {
 
     post_params.remove_bin.push(stamp);
 
-    // // uploadedStamp.value.map((stamp, idx) => {
-    // //     if(stamp.url === url) {
-    // //         post_params.remove_bin.push(stamp);
-    // //     }
-    // // });
     deleteStampRunning.value = true;
 
     try {
@@ -194,13 +193,17 @@ let deleteStamp = async(stamp: object) => {
         deleteStampStep.value++;
         uploadedStamp.value = uploadedStamp.value.filter(stamp => stamp.url !== deleteStampUrl);
     } catch(e) {
-        console.log({e});
+        // console.log({e});
         deleteStampStep.value = 1;
         alert('도장 삭제 중 오류가 발생했습니다.');
     } finally {
         // selectedStamp.value = null;
         deleteStampRunning.value = false;
     }
+}
+
+const refresh = async() => {
+    getStampList(true);
 }
 
 onMounted(() => {
@@ -239,7 +242,7 @@ onUnmounted(() => {
     .stamp-grid {
         position: relative;
         width: 100%;
-        border: 1px solid var(--gray-color-100);
+        border: 1px solid var(--gray-color-200);
         border-radius: 0.5rem;
 
         &::after {
@@ -389,6 +392,7 @@ onUnmounted(() => {
                 cursor: pointer;
                 padding: 8px 12px;
                 border-radius: 4px;
+				white-space: nowrap;
 
                 &:first-child {
                     margin-bottom: 4px;
@@ -419,7 +423,7 @@ onUnmounted(() => {
     object-fit: contain;
     position: relative;
     background-color: #fff;
-    border: 2px dashed var(--gray-color-100);
+    border: 2px dashed var(--gray-color-200);
     margin-bottom: 0.5rem;
 
     &::before {
@@ -454,19 +458,9 @@ onUnmounted(() => {
     }
 }
 
-@media (max-width: 768px) {
-    .stamp-wrap {
-        .stamp-grid {
-            .upload-options {
-                transform: translateX(10%) translateY(-12%);
-                
-                li {
-                    font-size: 1rem;
-                    padding: 10px 14px;
-                }
-            }
-        }
-    }
+.refresh-icon {
+    margin-bottom: 1rem;
+    margin-left: auto;
 }
 
 @media (max-width: 950px) {
@@ -474,14 +468,43 @@ onUnmounted(() => {
         grid-template-columns: repeat(3, 1fr);
     }
 }
-@media (max-width: 576px) {
+
+@media (max-width: 768px) {
     .stamp-wrap {
         grid-template-columns: repeat(2, 1fr);
+        
+        .stamp-grid {
+            .upload-options {
+                transform: translateX(10%) translateY(-12%);
+                
+                li {
+                    font-size: 0.875rem;
+                    padding: 10px 8px;
+                }
+            }
+        }
     }
 }
-@media (max-width: 390px) {
-    .stamp-wrap {
-        grid-template-columns: repeat(1, 1fr);
+
+@media (max-width: 576px) {
+    #stamp-img {
+        width: 80px;
+        height: 80px;
     }
+    
+    // .stamp-wrap {
+    //     grid-template-columns: repeat(1, 1fr);
+
+    //     .stamp-grid {
+    //         .upload-options {
+    //             transform: translateX(10%) translateY(-12%);
+                
+    //             li {
+    //                 font-size: 1rem;
+    //                 padding: 10px 14px;
+    //             }
+    //         }
+    //     }
+    // }
 }
 </style>

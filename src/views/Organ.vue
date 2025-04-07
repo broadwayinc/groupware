@@ -12,10 +12,10 @@ hr
 
 br
 
-Organigram(:useCheckbox="false")
+Organigram(:useCheckbox="false" :excludeCurrentUser="false")
 </template>
 
-<script lang="ts" setup>
+<script setup>
 import { ref } from 'vue';
 import { organigram, getOrganigram, getOrganigramRunning, excludeCurrentUser } from '@/components/organigram'
 

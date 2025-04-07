@@ -75,10 +75,9 @@ hr
                 use(xlink:href="@/assets/icon/material-icon.svg#icon-arrow-forward-ios")
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { useRoute, useRouter } from "vue-router";
 import { ref, computed, onMounted, watch, nextTick } from "vue";
-import type { Ref } from 'vue';
 import { skapi } from "@/main";
 import { loading, divisionNameList, getDivisionData } from "@/division";
 import { user, makeSafe } from '@/user';
@@ -88,14 +87,14 @@ import Loading from "@/components/loading.vue";
 const router = useRouter();
 const route = useRoute();
 
-const loading = ref(true);
+// const loading = ref(true);
 const employee = ref([]);
 const selectedEmp = ref(null);
-const searchFor: Ref<"name" | "division" | "timestamp"> = ref('name');
+const searchFor = ref('name');
 const searchValue = ref('');
 const searchPositionValue = ref('');
 
-const extractTimeFromDateTime = (dateTimeStr: string): string => {
+const extractTimeFromDateTime = (dateTimeStr) => {
   if (!dateTimeStr) return '';
 
   return dateTimeStr.split(" ")[1] // 시간만 추출 (ex. 2021-08-01 15:00:00 -> 15:00:00)
@@ -161,7 +160,6 @@ const getEmpList = async () => {
                 access_group: 1
             },
         });
-		// console.log('=== getEmpList === workTime : ', workTime);
 
 		if(!workTime.list.length) {
 			loading.value = false;
@@ -170,8 +168,6 @@ const getEmpList = async () => {
 
         // 기준 근무시간 가져오기
         const getTimestampFromTimeString = (timeString) => {
-            // console.log('=== getTimestampFromTimeString === timeString : ', timeString);
-
             // 현재 날짜 가져오기
             const today = new Date();
 
@@ -259,7 +255,6 @@ const getEmpList = async () => {
         });
 
         const results = await Promise.all(empPromises);
-		console.log('=== getEmpList === results : ', results);
         newEmpList.push(...results);
 
         return newEmpList;
@@ -279,8 +274,8 @@ function getTimestampFromTimeString(timeString) {
     return today.getTime();
 };
 
-const displayDivisionOptions = (selectName: string) => {
-    let divisionList = document.querySelector(`select[name="${selectName}"]`) as HTMLSelectElement;
+const displayDivisionOptions = (selectName) => {
+    let divisionList = document.querySelector(`select[name="${selectName}"]`);
 
     // 기존 옵션을 제거하지 않고 새로운 옵션을 추가
     divisionList.innerHTML = ''; // 기존 옵션 초기화
@@ -394,7 +389,6 @@ onMounted(async () => {
     if(res.length > 0) {
         employee.value = res.filter(emp => emp.approved.split(':')[1] !== 'suspended');
     }
-    // console.log('=== onMounted === employee.value : ', employee.value);
 });
 </script>
 
@@ -423,6 +417,10 @@ onMounted(async () => {
             &:hover {
                 cursor: pointer;
             }
+        }
+
+        td {
+            white-space: nowrap;
         }
     }
 }

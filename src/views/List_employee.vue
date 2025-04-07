@@ -235,14 +235,13 @@ br
                 button.btn.btn-register(type="submit" @click="registerEmp") 등록
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { useRoute, useRouter } from 'vue-router';
 import { ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue';
 import { skapi } from '@/main';
 import { user, makeSafe } from '@/user';
 import { divisionNameList } from '@/division'
 import { getEmpDivisionPosition, getUsers, getInvitations, getUserCache, getInvitationsCache } from '@/employee';
-import type { Ref } from 'vue';
 
 import Loading from '@/components/loading.vue';
 
@@ -267,7 +266,7 @@ let selectedEmpTags = ref({
     emp_dvs: '',
     emp_pst: '',
 });
-let searchFor: Ref<"name" | "division" | "email" | "timestamp"> = ref('name');
+let searchFor = ref('name');
 let searchValue = ref('');
 let searchPositionValue = ref('');
 let uploadFile = ref([]);
@@ -339,14 +338,14 @@ watch(searchValue, (nv) => {
 
 async function arrangeEmpDivisionPosition(li) {
     // console.log({li})
-    let list = await Promise.all(li.map((l: any) => {
+    let list = await Promise.all(li.map((l) => {
         if(l) {
             return getEmpDivisionPosition(l).catch(err => err)
         }
         return null;
     }));
     let toReturn = [];
-    list.forEach((l: any) => {
+    list.forEach((l) => {
         if (l) {
             toReturn.push(l);
         }
@@ -397,8 +396,8 @@ let refresh = () => {
     getEmpList(empListType.value, true);
 }
 
-let displayDivisionOptions = (selectName: string) => {
-    let divisionList = document.querySelector(`select[name="${selectName}"]`) as HTMLSelectElement;
+let displayDivisionOptions = (selectName) => {
+    let divisionList = document.querySelector(`select[name="${selectName}"]`);
 
     // 기존 옵션을 제거하지 않고 새로운 옵션을 추가
     divisionList.innerHTML = ''; // 기존 옵션 초기화
@@ -513,7 +512,7 @@ let getAdditionalData = () => {
         if(res.list.length > 0) {
             let fileList = [];
 
-            function getFileUserId(str: string) {
+            function getFileUserId(str) {
                 if (!str) return '';
 
                 return str.split('/')[3]
@@ -659,7 +658,7 @@ let cancelInvite = (employee_info) => {
 
     let positionTable = {
         table: {
-            name: 'emp_division',
+            name: 'emp_division' + safeUserId,
             access_group: 1
         },
         index: {
@@ -741,7 +740,7 @@ let registerEmp = async(e) => {
     if(selectedEmpOriginal.division !== selectedEmpTags.value.emp_dvs || selectedEmpOriginal.position !== selectedEmpTags.value.emp_pst) {
         skapi.postRecord(null, {
             table: {
-                name: 'emp_division',
+                name: 'emp_division' + user_id_safe,
                 access_group: 1
             },
             tags: ["[emp_pst]" + selectedEmpTags.value.emp_pst, "[emp_id]" + user_id_safe, "[emp_dvs]" + selectedEmpTags.value.emp_dvs]
@@ -893,6 +892,14 @@ onUnmounted(() => {
 			transform: translate(-50%, -50%);
 		}
 	}
+}
+
+#employee_list {
+    tbody {
+        td {
+            white-space: nowrap;
+        }
+    }
 }
 
 .go-detail {
